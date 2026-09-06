@@ -1,4 +1,4 @@
-"""Generates Graphs/hir_formula.png — v stilu originalnega AHI.png"""
+"""Generates Graphs/ahi_formula.png — v stilu originalnega AHI.png"""
 
 from pathlib import Path
 import matplotlib
@@ -6,8 +6,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-OUT_PATH = PROJECT_ROOT / "Graphs" / "hir_formula.png"
-OUT_PATH_AHI = PROJECT_ROOT / "Graphs" / "ahi_formula.png"
+OUT_PATH = PROJECT_ROOT / "Graphs" / "ahi_formula.png"
 
 fig, ax = plt.subplots(figsize=(12, 3.2), facecolor="#111111")
 ax.set_facecolor("#111111")
@@ -52,7 +51,5 @@ ax.text(
 plt.tight_layout(pad=0.4)
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT_PATH, dpi=180, bbox_inches="tight", facecolor="#111111")
-plt.savefig(OUT_PATH_AHI, dpi=180, bbox_inches="tight", facecolor="#111111")
 plt.close()
 print(f"Shranjeno: {OUT_PATH}")
-print(f"Shranjeno: {OUT_PATH_AHI}")

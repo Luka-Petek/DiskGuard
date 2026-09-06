@@ -1,4 +1,4 @@
-# Thin alias module to keep naming consistent after HIR→AHI rename.
+# Thin alias module to keep naming consistent after AHI rename.
 # Re-exports predict_ahi CLI from hir_final without duplicating logic.
 
 from __future__ import annotations

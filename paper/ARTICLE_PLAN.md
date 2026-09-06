@@ -93,8 +93,8 @@ This maps to conference tracks **Applications** + **Sensor Data Analytics/Edge A
 
 ### 2.4 Assets to pull from `diskFailurePrediction` (read-only source)
 - Performance tables from `@/C:/Projects/diskFailurePrediction/README.md:44-49`
-- Candidate figures from `Graphs/`: `hir_formula.png`, `nn_classification.png`, `umap_hdbscan.png`, `classification.png` — must pick only 1–2 given space budget
-- AHI formula weights and fusion rationale from `srcML/hir_final.py` and README AHI section
+- Candidate figures from `Graphs/`: `ahi_formula.png`, `nn_classification.png`, `umap_hdbscan.png`, `classification.png` — must pick only 1–2 given space budget
+- AHI formula weights and fusion rationale from `srcML/ahi_final.py` and README AHI section
 
 ### 2.5 Process
 1. Lock the angle (Step 2.1).

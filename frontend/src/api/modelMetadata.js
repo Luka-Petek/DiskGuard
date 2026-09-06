@@ -175,7 +175,7 @@ export const GRAPH_LABELS = {
   'umap_hdbscan.png': 'UMAP Projection with HDBSCAN Clusters',
   'bottleneck_kmeans_clusters.png': 'Bottleneck Space — K-means Clusters',
   'kmeans_elbow.png': 'K-means Elbow Plot',
-  'hir_formula.png': 'AHI Formula Diagram',
+  'ahi_formula.png': 'AHI Formula Diagram',
 };
 
 // --- Sweep results (optional: show why dim=8 was chosen) ---

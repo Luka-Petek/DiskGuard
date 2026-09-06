@@ -71,7 +71,7 @@ Calls `procesiraj_podatke`, then extracts 19 `FEATURE_COLUMNS`. Missing columns 
 - **Model**: sklearn RandomForestClassifier on 19 SMART features + manufacturer one-hot encoding
 - **Training**: done in notebook; pipeline serialized as `disk_health_pipeline.pkl`
 - **Inference**: `DiskHealthPipeline.analyze()` — parses JSON, preprocesses, one-hot encodes manufacturer (Seagate, WD, HGST, Toshiba, Samsung, Crucial, Other), predicts `predict_proba`, clamps to [5, 97]
-- **Output**: `failure_probability` ∈ [0, 1], `hir_risk_score` ∈ [5, 97], verdict
+- **Output**: `failure_probability` ∈ [0, 1], `ahi_risk_score` ∈ [5, 97], verdict
 
 ---
 
@@ -190,7 +190,7 @@ For each cluster:
 
 ## AHI Fusion - Formula
 
-![AHI Formula](../Graphs/hir_formula.png)
+![AHI Formula](../Graphs/ahi_formula.png)
 
 Since weights sum to 1.0, the denominator (Σw) is omitted.
 
@@ -211,7 +211,7 @@ Since weights sum to 1.0, the denominator (Σw) is omitted.
 ### Why RMS over linear average
 RMS amplifies large individual signals. A disk scoring 0.9 on one model and 0.1 on others gets `sqrt(0.4·0.9²) ≈ 0.57` with RMS vs `0.4·0.9 = 0.36` with linear. A catastrophic signal on one axis cannot be averaged away.
 
-### Inference flow (`hir_final.py`)
+### Inference flow (`ahi_final.py`)
 1. Load all 4 model artifacts (RF pipeline, encoder+classifier+scaler, AE+scaler, HDBSCAN+metadata)
 2. Parse smartctl JSON → `pretvori_json_v_surovi_df` → raw DataFrame
 3. Score each model independently (all share the same `prepare_features` preprocessing)
@@ -223,7 +223,7 @@ RMS amplifies large individual signals. A disk scoring 0.9 on one model and 0.1 
 
 **File**: `backend/main.py`
 
-FastAPI app with `lifespan` context that loads all artifacts on startup. Same AHI computation as `hir_final.py`.
+FastAPI app with `lifespan` context that loads all artifacts on startup. Same AHI computation as `ahi_final.py`.
 
 ### Endpoints
 - `POST /api/predict/anomaly` — Impl 1 AE only

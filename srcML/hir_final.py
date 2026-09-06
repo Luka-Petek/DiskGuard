@@ -1,4 +1,4 @@
-#  python srcML/hir_final.py --input DiskJson/disk_data_sda.json
+#  python srcML/ahi_final.py --input DiskJson/disk_data_sda.json
 #
 #  AHI (Aggregated Health Index) — kombinirana formula vseh 4 modelov:
 #    Impl 0  — Sklearn Random Forest        (utez 0.30)
