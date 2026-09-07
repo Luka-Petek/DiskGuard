@@ -108,6 +108,20 @@
     border-bottom: 2px solid var(--text-main); 
 }
 
+.nav-github-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    padding-bottom: 5px;
+    transition: color var(--transition-fast);
+}
+
+.nav-github-link:hover { color: var(--text-main); }
+
 .avatar {
     width: 32px; 
     height: 32px; 
@@ -388,6 +402,81 @@
     line-height: 1.5;
 }
 .mp-card-footer svg { flex-shrink: 0; margin-top: 1px; }
+
+/* Cluster description in scan results */
+.mp-cluster-desc {
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent-blue);
+}
+.mp-cluster-desc-label { font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; }
+.mp-cluster-desc-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.mp-cluster-desc-features { margin-top: 6px; font-size: 12px; color: var(--text-muted); display: flex; gap: 6px; }
+.mp-cluster-desc-flabel { font-weight: 600; color: var(--text-main); }
+
+/* AHI holdout evaluation summary */
+.mp-ahi-eval {
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+.mp-ahi-eval-title { font-size: 16px; font-weight: 700; color: var(--text-main); }
+.mp-ahi-eval-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.mp-ahi-eval-stats {
+    display: flex; gap: var(--space-5); margin-top: var(--space-3);
+    flex-wrap: wrap;
+}
+.mp-ahi-eval-stat { display: flex; flex-direction: column; gap: 2px; }
+.mp-ahi-eval-label { font-size: 12px; color: var(--text-muted); }
+.mp-ahi-eval-val { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mp-ahi-eval-val.healthy { color: var(--status-healthy); }
+.mp-ahi-eval-val.critical { color: var(--status-critical); }
+.mp-ahi-eval-thresholds {
+    margin-top: var(--space-3);
+    font-size: 13px; color: var(--text-muted);
+    display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+}
+
+/* Cluster risk map overview */
+.mp-cluster-overview {
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+.mp-cluster-overview-title { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: var(--space-3); }
+.mp-cluster-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+}
+.mp-cluster-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border-color);
+}
+.mp-cluster-chip.critical {
+    background: var(--status-critical-bg);
+    border-color: var(--status-critical);
+    color: var(--status-critical);
+}
+.mp-cluster-chip.warning {
+    background: var(--status-warning-bg);
+    border-color: var(--status-warning);
+    color: var(--status-warning);
+}
+.mp-cluster-chip.healthy {
+    background: var(--status-healthy-bg);
+    border-color: var(--status-healthy);
+    color: var(--status-healthy);
+}
+.mp-cluster-chip-id { font-weight: 700; }
+.mp-cluster-chip-rate { font-variant-numeric: tabular-nums; }
 
 /* === Reliability bar (HealthWidget) === */
 .reliability-bar {

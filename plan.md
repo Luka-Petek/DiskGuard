@@ -14,7 +14,7 @@ This shows how well AHI separates the two classes without needing any threshold 
 - **AHI** (Aggregated Health Index) used everywhere in code, comments, and paper.
 - Formula: `AHI = sqrt( Σ(wi · si²) / Σw ) × 100`  (RMS fusion of 4 model scores)
 - Weights: sklearn RF=0.30, TF bottleneck clf=0.40, AE anomaly=0.20, HDBSCAN cluster=0.10
-- Verdict bands: HEALTHY < 40, WARNING 40–75, CRITICAL > 75
+- Verdict bands: HEALTHY < 45, WARNING 45–65, CRITICAL > 65
 
 ---
 
@@ -100,5 +100,5 @@ Optional args:
 
 - The plot currently shows `(in-sample)` in the title — keep this for honesty in the paper.
 - Mean lines per class are shown as colored horizontal bars for quick visual comparison.
-- Zone lines at 40 and 75 are visual guides only, not classification thresholds.
+- Zone lines at 45 and 65 are visual guides only, not classification thresholds.
 - If a fresh holdout dataset becomes available later, re-run with `--data-csv <new_path>`.

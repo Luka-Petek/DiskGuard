@@ -8,8 +8,8 @@ const verdictToPill = {
 };
 
 const scoreToStatusColor = (score) => {
-  if (score >= 75) return 'var(--status-critical)';
-  if (score >= 40) return 'var(--status-warning)';
+  if (score >= 65) return 'var(--status-critical)';
+  if (score >= 45) return 'var(--status-warning)';
   return 'var(--status-healthy)';
 };
 

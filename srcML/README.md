@@ -204,9 +204,9 @@ Since weights sum to 1.0, the denominator (Σw) is omitted.
 | C | HDBSCAN cluster risk_score | 0.10 | [0, 1] cluster failure rate |
 
 ### Verdict thresholds
-- HEALTHY: < 40
-- WARNING: 40–75
-- CRITICAL: > 75
+- HEALTHY: < 45
+- WARNING: 45–65
+- CRITICAL: > 65
 
 ### Why RMS over linear average
 RMS amplifies large individual signals. A disk scoring 0.9 on one model and 0.1 on others gets `sqrt(0.4·0.9²) ≈ 0.57` with RMS vs `0.4·0.9 = 0.36` with linear. A catastrophic signal on one axis cannot be averaged away.

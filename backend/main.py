@@ -323,9 +323,9 @@ async def predict_combined(request: Request, file: UploadFile = File(...)):
     rms_score = float(np.sqrt(weighted_sum_sq / active_weight))
     disk_health_score = round(float(np.clip(rms_score * 100, 3.0, 97.0)), 2)
 
-    if disk_health_score >= 75.0:
+    if disk_health_score >= 65.0:
         combined_verdict = "CRITICAL"
-    elif disk_health_score >= 40.0:
+    elif disk_health_score >= 45.0:
         combined_verdict = "WARNING"
     else:
         combined_verdict = "HEALTHY"

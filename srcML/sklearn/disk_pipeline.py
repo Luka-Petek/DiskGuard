@@ -141,12 +141,12 @@ class DiskHealthPipeline:
             odstotek_tveganja = 5.0
 
         verdict = ""
-        if odstotek_tveganja > 75.0:
-            verdict = "Critical"
-        elif odstotek_tveganja <= 75.0 and odstotek_tveganja > 40.0:
-            verdict = "Warning"
-        elif odstotek_tveganja <= 40.0:
-            verdict = "Healthy"
+        if odstotek_tveganja > 65.0:
+            verdict = "CRITICAL"
+        elif odstotek_tveganja <= 65.0 and odstotek_tveganja > 45.0:
+            verdict = "WARNING"
+        elif odstotek_tveganja <= 45.0:
+            verdict = "HEALTHY"
 
         return {
             "ahi_risk_score": odstotek_tveganja,
