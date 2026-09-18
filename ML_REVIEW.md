@@ -1,6 +1,6 @@
 # ML Engineering Review — DiskGuard
 
-Review of the full project from an ML engineering perspective (all 4 implementations, shared preprocessing, HIR fusion, backend, Docker). Sorted by severity. Items marked with ⚠️ are the ones most likely to be challenged at a conference.
+Review of the full project from an ML engineering perspective (all 4 implementations, shared preprocessing, AHI fusion, backend, Docker). Sorted by severity. Items marked with ⚠️ are the ones most likely to be challenged at a conference.
 
 ---
 
@@ -73,7 +73,7 @@ Bayes correction to a true prior π:
 corrected = (r·π/0.5) / (r·π/0.5 + (1−r)·(1−π)/0.5)
 ```
 
-Example: cluster rate r = 0.669 (outliers), true prior π = 0.001 → corrected ≈ 0.2%. So the "66.9% failure rate" cluster represents ~0.2% real-world risk — yet HIR feeds 0.669 into the RMS as if it were a probability, systematically pushing HIR up (weight 0.10).
+Example: cluster rate r = 0.669 (outliers), true prior π = 0.001 → corrected ≈ 0.2%. So the "66.9% failure rate" cluster represents ~0.2% real-world risk — yet AHI feeds 0.669 into the RMS as if it were a probability, systematically pushing AHI up (weight 0.10).
 
 Options:
 - Recompute per-cluster rates on a prevalence-realistic sample; or
@@ -84,7 +84,7 @@ Options:
 
 ## Important (deferred by author — revisit later)
 
-- **HIR ensemble never evaluated**: weights (0.3/0.4/0.2/0.1) hand-picked; the fused score is an RMS of quantities with different semantics (2 probabilities, a percentile-normalized error, a cluster rate). Run HIR on a held-out set + ablation vs Impl 2 alone.
+- **AHI ensemble never evaluated**: weights (0.3/0.4/0.2/0.1) hand-picked; the fused score is an RMS of quantities with different semantics (2 probabilities, a percentile-normalized error, a cluster rate). Run AHI on a held-out set + ablation vs Impl 2 alone.
 - **Impl 0 notebook leakage**: median imputation and correlation-based feature dropping computed on the full dataset *before* the split. `disk_pipeline.py` hardcodes imputation medians (`0, 15, 1200, 12`) — persist actual training-time values in pickle/metadata instead.
 - **Impl 1 threshold/eval overlap**: 99th-percentile threshold derived from val errors, then ROC/report use those same val rows as healthy negatives → optimistic. Use a third split.
 - **Stage-1 AE / Stage-2 classifier data overlap**: both samplers use seed 42 over the same files → the encoder/scaler saw rows that end up in the classifier's test set.
@@ -94,7 +94,7 @@ Options:
 
 ## Minor / hygiene
 
-- **`disk_pipeline.py` clamp bug**: `if odstotek_tveganja > 95.0: odstotek_tveganja = 97.0` *raises* e.g. 95.1 → 97. Clamp bounds inconsistent (5–97 sklearn vs 3–97 HIR/backend); verdict thresholds duplicated in 3 files (`disk_pipeline.py`, `hir_final.py`, `backend/main.py`) — centralize.
+- **`disk_pipeline.py` clamp bug**: `if odstotek_tveganja > 95.0: odstotek_tveganja = 97.0` *raises* e.g. 95.1 → 97. Clamp bounds inconsistent (5–97 sklearn vs 3–97 AHI/backend); verdict thresholds duplicated in 3 files (`disk_pipeline.py`, `ahi_final.py`, `backend/main.py`) — centralize.
 - **Duplicated `FEATURE_COLUMNS`** in `tensorflow_anomaly/train_autoencoder.py` vs `preprocessing.py` — the local copy is dead code; drift risk.
 - **`requirements.txt`**: `tensorflow` unpinned (pin it — `.keras` format breaks across versions); `multipart` is a wrong/unnecessary package (`python-multipart` already present).
 - **CORS**: `allow_origins=["*"]` with `allow_credentials=True` is invalid/insecure — restrict to the frontend origin (relevant for a data-protection-themed demo).
@@ -110,5 +110,5 @@ Options:
 3. Audit/drop all-NaN failure rows, re-evaluate (#2).
 4. Lookback labeling for the "before they die" claim (#4).
 5. Correct/rescale cluster risk scores (#6).
-6. Evaluate fused HIR + ablation.
+6. Evaluate fused AHI + ablation.
 7. Everything else.

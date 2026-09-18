@@ -24,7 +24,6 @@ This shows how well AHI separates the two classes without needing any threshold 
 |---|---|
 | `srcML/ahi_final.py` | Core AHI computation — loads all 4 models and computes AHI for a single disk |
 | `srcML/evaluate_ahi.py` | Batch evaluation — samples N disks from CSV, computes AHI per disk, saves CSV + plot |
-| `srcML/ahi_final.py` | Thin CLI alias for `ahi_final.py::predict_ahi` |
 | `srcML/generate_ahi_diagram.py` | Generates `Graphs/ahi_formula.png` |
 | `Graphs/ahi_color_rock.png` | Output figure (generated, ready) |
 | `DiskJson/ahi_eval_sample.csv` | Per-disk AHI results (generated, ready) |
@@ -44,9 +43,8 @@ This shows how well AHI separates the two classes without needing any threshold 
 
 ## Steps
 
-### [DONE] Step 1 — Rename HIR → AHI
+### [DONE] Step 1 — Rename to AHI
 - `srcML/ahi_final.py`: renamed `_compute_ahi`, `predict_ahi`
-- `srcML/ahi_final.py`: created as clean CLI alias
 - `srcML/generate_ahi_diagram.py`: saves `ahi_formula.png`
 
 ### [DONE] Step 2 — Write `evaluate_ahi.py`

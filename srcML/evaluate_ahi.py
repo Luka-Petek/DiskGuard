@@ -17,7 +17,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from srcML.hir_final import (
+from srcML.ahi_final import (
     PROJECT_ROOT,
     _load_sklearn_pipeline,
     _load_tf_clf_artifacts,
