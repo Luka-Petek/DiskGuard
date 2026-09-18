@@ -85,7 +85,7 @@ diskFailurePrediction/
 │   │   └── logs/                       #   TensorBoard Embedding Projector logs
 │   ├── nn_preprocessing/
 │   │   └── preprocessing.py            #   Shared feature prep, CSV loading, dataset balancing
-│   └── hir_final.py                    #   ★ Final AHI scoring — combines all 4 models
+│   └── ahi_final.py                    #   ★ Final AHI scoring — combines all 4 models
 │
 ├── backend/                            # FastAPI inference server
 ├── frontend/                           # React + Vite dashboard
@@ -185,7 +185,7 @@ python srcML/tensorflow_clustering/umap_hdbscan.py --data-dir DiskData
 
 All four models are fused into a single score using a **weighted root-mean-square** formula. RMS is preferred over a linear average because it amplifies large individual signals — a disk that looks catastrophic on one axis cannot be "averaged away" by healthy scores elsewhere.
 
-![AHI Formula](Graphs/hir_formula.png)
+![AHI Formula](Graphs/ahi_formula.png)
 
 | Symbol | Source | Weight |
 |---|---|---|
@@ -204,13 +204,13 @@ All four models are fused into a single score using a **weighted root-mean-squar
 smartctl -A -i /dev/sda -j > disk_data.json
 
 # Score with all four models
-python srcML/hir_final.py --input disk_data.json
+python srcML/ahi_final.py --input disk_data.json
 ```
 
 ### Example output:
 ```json
 {
-  "hir_score": 33.43,
+  "ahi_score": 33.43,
   "verdict": "HEALTHY",
   "components": {
     "sklearn_failure_prob": 0.2106,

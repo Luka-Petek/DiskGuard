@@ -29,7 +29,7 @@ AGREED TERMINOLOGY & EXPRESSION ADJUSTMENTS
    - Section in Discussion: "Advantages of the Multi-Paradigm Approach"
    - Highlight robustness, interpretability, graceful degradation.
 
-6. "utilization with aggregated HIR function"
+6. "utilization with aggregated AHI function"
    - The AHI (Aggregated Health Index) function is the core utilization
      output — make sure deployment use cases reference it clearly.
 

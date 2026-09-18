@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileUp } from 'lucide-react';
+import { Upload, FileUp, ExternalLink } from 'lucide-react';
 import { loadSampleAsFile, SAMPLE_FILES } from '../api/client';
+import { GITHUB_URL } from '../api/modelMetadata';
 import logoWordmark from '../assets/logo-wordmark.svg';
 
 const Navbar = ({ onAnalyze, loading, activeView, onViewChange }) => {
@@ -63,6 +64,16 @@ const Navbar = ({ onAnalyze, loading, activeView, onViewChange }) => {
           onClick={() => onViewChange?.('models')}
         >Model Performance</span>
         <span>Settings</span>
+        <a
+          href={GITHUB_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-github-link"
+          title="View on GitHub"
+        >
+          <ExternalLink size={14} />
+          GitHub
+        </a>
       </div>
       <div style={{ position: 'relative' }} ref={popoverRef}>
         <button

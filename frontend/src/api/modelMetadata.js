@@ -6,6 +6,7 @@ const clfMetaMod = import.meta.glob('../../srcML/tensorflow_classification/bottl
 const clfAeMetaMod = import.meta.glob('../../srcML/tensorflow_classification/clf_ae_metadata.json', { eager: true });
 const anomalyMetaMod = import.meta.glob('../../srcML/tensorflow_anomaly/tf_metadata.json', { eager: true });
 const clusteringMetaMod = import.meta.glob('../../srcML/tensorflow_clustering/hdbscan_metadata.json', { eager: true });
+const clusterDescMod = import.meta.glob('../../srcML/tensorflow_clustering/cluster_descriptions.json', { eager: true });
 const sweepMetaMod = import.meta.glob('../../DiskJson/bottleneck_sweep_results.json', { eager: true });
 
 function extract(mod) {
@@ -19,6 +20,7 @@ const clfMeta = extract(clfMetaMod);
 const clfAeMeta = extract(clfAeMetaMod);
 const anomalyMeta = extract(anomalyMetaMod);
 const clusteringMeta = extract(clusteringMetaMod);
+const clusterDescriptions = extract(clusterDescMod);
 const sweepMeta = extract(sweepMetaMod);
 
 // --- Feature importance (hardcoded — CSV is gitignored/dockerignored) ---
@@ -128,7 +130,7 @@ export const MODEL_METADATA = {
     bottleneckDim: clfMeta?.bottleneck_dim ?? 8,
     threshold: clfMeta?.threshold ?? 0.283,
     trainingRows: clfMeta?.training ?? null,
-    epochs: clfMeta?.training ? `${clfMeta.training.epochs_converged}/${clfMeta.training.epochs_requested}` : null,
+    epochs: clfMeta?.training ? `${clfMeta.training.epochs_finished}/${clfMeta.training.epochs_requested}` : null,
     description: 'AE encoder compresses 19 features → 8-dim bottleneck. Supervised classifier on distilled features. Best performer.',
   },
   tf_anomaly: {
@@ -144,7 +146,7 @@ export const MODEL_METADATA = {
     bottleneckDim: anomalyMeta?.bottleneck_dim ?? 12,
     threshold: anomalyMeta?.threshold ?? 0.00408,
     trainingRows: anomalyMeta?.training ?? null,
-    epochs: anomalyMeta?.training ? `${anomalyMeta.training.epochs_converged}/${anomalyMeta.training.epochs_requested}` : null,
+    epochs: anomalyMeta?.training ? `${anomalyMeta.training.epochs_finished}/${anomalyMeta.training.epochs_requested}` : null,
     description: 'Trained on 292k healthy rows only. Flags disks with high reconstruction error. Conservative — low false positive rate.',
   },
   clustering: {
@@ -166,6 +168,26 @@ export const MODEL_METADATA = {
   },
 };
 
+// --- Cluster descriptions (from cluster_descriptions.json) ---
+export const CLUSTER_DESCRIPTIONS = clusterDescriptions || {};
+
+// --- AHI holdout evaluation (from paper — Backblaze 2023, not used in training) ---
+export const AHI_HOLDOUT_EVAL = {
+  dataset: 'Backblaze 2023 (holdout — not used in training)',
+  nDisks: 100,
+  nHealthy: 50,
+  nFailed: 50,
+  meanHealthy: 33.7,
+  stdHealthy: 8.4,
+  meanFailed: 58.7,
+  stdFailed: 18.0,
+  separation: 25.0,
+  verdictThresholds: { healthy: 45, warning: 65, critical: 100 },
+};
+
+// --- GitHub repo ---
+export const GITHUB_URL = 'https://github.com/DaDudee/diskFailurePrediction';
+
 // --- Graph labels for the gallery ---
 export const GRAPH_LABELS = {
   'nn_classification.png': 'Bottleneck Classifier — Training Curves',
@@ -175,7 +197,9 @@ export const GRAPH_LABELS = {
   'umap_hdbscan.png': 'UMAP Projection with HDBSCAN Clusters',
   'bottleneck_kmeans_clusters.png': 'Bottleneck Space — K-means Clusters',
   'kmeans_elbow.png': 'K-means Elbow Plot',
-  'hir_formula.png': 'AHI Formula Diagram',
+  'ahi_formula.png': 'AHI Formula Diagram',
+  'ahi_color_rock.png': 'AHI Score Distribution (In-Sample)',
+  'ahi_color_rock_holdout2023.png': 'AHI Score Distribution (Holdout 2023)',
 };
 
 // --- Sweep results (optional: show why dim=8 was chosen) ---

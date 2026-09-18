@@ -4,6 +4,8 @@ import Skeleton from './Skeleton';
 import GraphGallery from './GraphGallery';
 import {
   MODEL_METADATA,
+  CLUSTER_DESCRIPTIONS,
+  AHI_HOLDOUT_EVAL,
   reliabilityColor,
   fmt,
   fmtPct,
@@ -158,13 +160,30 @@ function ModelCard({ modelKey, modelData, scanData }) {
                   Outliers have 66.9% failure rate in training data
                 </div>
               )}
+              {(() => {
+                const cid = String(scanData.cluster_id ?? '');
+                const desc = CLUSTER_DESCRIPTIONS[cid];
+                if (!desc) return null;
+                return (
+                  <div className="mp-cluster-desc">
+                    <div className="mp-cluster-desc-label">Cluster {cid} profile</div>
+                    <div className="mp-cluster-desc-text">{desc.description}</div>
+                    {desc.top_features && desc.top_features !== 'insufficient data in evaluation CSV' && (
+                      <div className="mp-cluster-desc-features">
+                        <span className="mp-cluster-desc-flabel">Top signals:</span>
+                        <span>{desc.top_features}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
           {modelKey === 'sklearn' && (
             <div className="mp-extra">
               <div className="mp-extra-row">
-                <span>AHI Score</span>
+                <span>RF Risk</span>
                 <strong className="tabular-nums">
                   {scanData.ahi_risk_score != null ? `${Math.round(scanData.ahi_risk_score)}%` : '—'}
                 </strong>
@@ -229,6 +248,62 @@ const TrendWidget = ({ result, loading }) => {
         <ModelCard modelKey="tf_anomaly" scanData={scores.tf_anomaly} />
         <ModelCard modelKey="sklearn" scanData={scores.sklearn} />
         <ModelCard modelKey="clustering" scanData={scores.clustering} />
+      </div>
+
+      {/* AHI holdout evaluation summary */}
+      <div className="mp-ahi-eval">
+        <div className="mp-ahi-eval-title">AHI Holdout Evaluation</div>
+        <div className="mp-ahi-eval-desc">
+          {AHI_HOLDOUT_EVAL.nDisks} disks from {AHI_HOLDOUT_EVAL.dataset}
+        </div>
+        <div className="mp-ahi-eval-stats">
+          <div className="mp-ahi-eval-stat">
+            <span className="mp-ahi-eval-label">Healthy mean</span>
+            <span className="mp-ahi-eval-val healthy">{AHI_HOLDOUT_EVAL.meanHealthy}% (σ={AHI_HOLDOUT_EVAL.stdHealthy}%)</span>
+          </div>
+          <div className="mp-ahi-eval-stat">
+            <span className="mp-ahi-eval-label">Failed mean</span>
+            <span className="mp-ahi-eval-val critical">{AHI_HOLDOUT_EVAL.meanFailed}% (σ={AHI_HOLDOUT_EVAL.stdFailed}%)</span>
+          </div>
+          <div className="mp-ahi-eval-stat">
+            <span className="mp-ahi-eval-label">Separation</span>
+            <span className="mp-ahi-eval-val">~{AHI_HOLDOUT_EVAL.separation} pp</span>
+          </div>
+        </div>
+        <div className="mp-ahi-eval-thresholds">
+          Verdicts: <span className="status-pill healthy">HEALTHY &lt; {AHI_HOLDOUT_EVAL.verdictThresholds.healthy}</span>
+          {' '}
+          <span className="status-pill warning">WARNING {AHI_HOLDOUT_EVAL.verdictThresholds.healthy}–{AHI_HOLDOUT_EVAL.verdictThresholds.warning}</span>
+          {' '}
+          <span className="status-pill critical">CRITICAL &gt; {AHI_HOLDOUT_EVAL.verdictThresholds.warning}</span>
+        </div>
+      </div>
+
+      {/* Cluster overview */}
+      <div className="mp-cluster-overview">
+        <div className="mp-cluster-overview-title">Cluster Risk Map ({MODEL_METADATA.clustering.nClusters} clusters)</div>
+        <div className="mp-cluster-grid">
+          {Object.entries(CLUSTER_DESCRIPTIONS)
+            .sort((a, b) => {
+              const ra = a[1].risk_label;
+              const rb = b[1].risk_label;
+              const order = { HIGH_RISK: 0, OUTLIER: 1, ELEVATED_RISK: 2, LOW_RISK: 3 };
+              return (order[ra] ?? 9) - (order[rb] ?? 9);
+            })
+            .map(([cid, desc]) => {
+              const riskCls = desc.risk_label === 'HIGH_RISK' ? 'critical'
+                : desc.risk_label === 'OUTLIER' ? 'critical'
+                : desc.risk_label === 'ELEVATED_RISK' ? 'warning'
+                : 'healthy';
+              return (
+                <div key={cid} className={`mp-cluster-chip ${riskCls}`}>
+                  <span className="mp-cluster-chip-id">#{cid}</span>
+                  <span className="mp-cluster-chip-rate">{Math.round(desc.failure_rate * 100)}%</span>
+                  <span className="mp-cluster-chip-label">{desc.risk_label.replace(/_/g, ' ')}</span>
+                </div>
+              );
+            })}
+        </div>
       </div>
 
       {showGallery && <GraphGallery onClose={() => setShowGallery(false)} />}

@@ -11,10 +11,10 @@ This shows how well AHI separates the two classes without needing any threshold 
 
 ## Terminology
 
-- **HIR is fully renamed to AHI** everywhere in code, comments, and paper.
+- **AHI** (Aggregated Health Index) used everywhere in code, comments, and paper.
 - Formula: `AHI = sqrt( Σ(wi · si²) / Σw ) × 100`  (RMS fusion of 4 model scores)
 - Weights: sklearn RF=0.30, TF bottleneck clf=0.40, AE anomaly=0.20, HDBSCAN cluster=0.10
-- Verdict bands: HEALTHY < 40, WARNING 40–75, CRITICAL > 75
+- Verdict bands: HEALTHY < 45, WARNING 45–65, CRITICAL > 65
 
 ---
 
@@ -22,10 +22,9 @@ This shows how well AHI separates the two classes without needing any threshold 
 
 | File | Role |
 |---|---|
-| `srcML/hir_final.py` | Core AHI computation — loads all 4 models and computes AHI for a single disk |
+| `srcML/ahi_final.py` | Core AHI computation — loads all 4 models and computes AHI for a single disk |
 | `srcML/evaluate_ahi.py` | Batch evaluation — samples N disks from CSV, computes AHI per disk, saves CSV + plot |
-| `srcML/ahi_final.py` | Thin CLI alias for `hir_final.py::predict_ahi` |
-| `srcML/generate_hir_diagram.py` | Generates `Graphs/hir_formula.png` and `Graphs/ahi_formula.png` |
+| `srcML/generate_ahi_diagram.py` | Generates `Graphs/ahi_formula.png` |
 | `Graphs/ahi_color_rock.png` | Output figure (generated, ready) |
 | `DiskJson/ahi_eval_sample.csv` | Per-disk AHI results (generated, ready) |
 | `paper/main.tex` | Paper — figure needs to be integrated here |
@@ -44,10 +43,9 @@ This shows how well AHI separates the two classes without needing any threshold 
 
 ## Steps
 
-### [DONE] Step 1 — Rename HIR → AHI
-- `srcML/hir_final.py`: renamed `_compute_ahi`, `predict_ahi`
-- `srcML/ahi_final.py`: created as clean CLI alias
-- `srcML/generate_hir_diagram.py`: saves both `hir_formula.png` (legacy) and `ahi_formula.png`
+### [DONE] Step 1 — Rename to AHI
+- `srcML/ahi_final.py`: renamed `_compute_ahi`, `predict_ahi`
+- `srcML/generate_ahi_diagram.py`: saves `ahi_formula.png`
 
 ### [DONE] Step 2 — Write `evaluate_ahi.py`
 - Loads CSV, takes balanced sample (50+50)
@@ -100,5 +98,5 @@ Optional args:
 
 - The plot currently shows `(in-sample)` in the title — keep this for honesty in the paper.
 - Mean lines per class are shown as colored horizontal bars for quick visual comparison.
-- Zone lines at 40 and 75 are visual guides only, not classification thresholds.
+- Zone lines at 45 and 65 are visual guides only, not classification thresholds.
 - If a fresh holdout dataset becomes available later, re-run with `--data-csv <new_path>`.
