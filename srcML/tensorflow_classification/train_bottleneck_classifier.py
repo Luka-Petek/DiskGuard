@@ -17,7 +17,6 @@ from sklearn.metrics import (
     precision_recall_curve,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +29,7 @@ from srcML.nn_preprocessing.preprocessing import (
     FEATURE_COLUMNS,
     build_balanced_dataset_from_csvs,
     prepare_features,
+    serial_grouped_masks,
 )
 
 DEFAULT_FAILURE_CSV = PROJECT_ROOT / "csv" / "vseOdpovedi.csv"
@@ -152,13 +152,15 @@ def main() -> None:
         np.ones(len(Z_failed), dtype="float32"),
     ])
 
-    #razdelitev: 70% train, 15% val, 15% test — stratified da ohranimo razmerje razredov
-    Z_train, Z_temp, y_train, y_temp = train_test_split(
-        Z, y, test_size=0.30, random_state=args.random_state, stratify=y
-    )
-    Z_val, Z_test, y_val, y_test = train_test_split(
-        Z_temp, y_temp, test_size=0.50, random_state=args.random_state, stratify=y_temp
-    )
+    #razdelitev: 70% train, 15% val, 15% test — po serijskih številkah (isti disk ne sme biti v vec mnozicah)
+    serials = np.concatenate([
+        healthy_raw["serial_number"].astype(str).to_numpy(),
+        failure_raw["serial_number"].astype(str).to_numpy(),
+    ])
+    train_mask, temp_mask = serial_grouped_masks(serials, 0.30, args.random_state)
+    Z_train, Z_temp, y_train, y_temp = Z[train_mask], Z[temp_mask], y[train_mask], y[temp_mask]
+    val_mask, test_mask = serial_grouped_masks(serials[temp_mask], 0.50, args.random_state)
+    Z_val, Z_test, y_val, y_test = Z_temp[val_mask], Z_temp[test_mask], y_temp[val_mask], y_temp[test_mask]
 
     print(f"\nRazdelitev:")
     print(f"  Train: {len(Z_train):,} (failures: {int(y_train.sum()):,})")

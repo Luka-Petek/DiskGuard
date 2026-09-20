@@ -195,6 +195,15 @@ def build_balanced_dataset_from_csvs(
     print(f"Healthy po izenacitvi (50:50): {len(healthy_df):,}")
     return healthy_df, failure_df
 
+#razdelitev po serijskih številkah — vse vrstice istega diska gredo v isto množico,
+#da se isti disk ne pojavi v train in test/val hkrati (prepreci leakage)
+def serial_grouped_masks(serials, test_frac: float, random_state: int) -> tuple[np.ndarray, np.ndarray]:
+    s = pd.Series(np.asarray(serials)).astype(str)
+    unique = s.drop_duplicates().sample(frac=1.0, random_state=random_state)
+    test_serials = set(unique.iloc[: int(round(len(unique) * test_frac))])
+    is_test = s.isin(test_serials).to_numpy()
+    return ~is_test, is_test
+
 # to je samo za evaluation nad 2026 podatki (prejo smo imeli evaluacijo nad 2025)
 def build_current_state_evaluation_from_csvs(
     data_dir: Path,
