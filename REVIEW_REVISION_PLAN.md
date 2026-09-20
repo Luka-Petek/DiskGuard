@@ -406,6 +406,8 @@ For one untouched 2026 record, show:
 - cluster assignment and description;
 - a non-causal interpretation of the result.
 
+**Note:** Add this worked example in the Clustering section (not Discussion) after the 2026 evaluation, using a real 2026 record.
+
 ### Done when
 
 Dependence is acknowledged, clustering is reproducible, and interpretability is demonstrated with a concrete example.

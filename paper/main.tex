@@ -83,10 +83,10 @@ Machine learning (ML) applied to raw SMART attribute values, rather than the man
 
 \textbf{Dataset.} We use Backblaze's 2025 hard drive SMART dataset~\cite{backblaze2025}, which covers a full calendar year of daily records. The fleet is mostly HDDs~\cite{backblaze2025stats}, and failures are rare compared to healthy records (high class imbalance), which was one of the main challenges.
 
-\textbf{Two dataset variants.} We prepared two final training datasets to match the learning setups:
+\textbf{Two dataset variants.} We prepared two training datasets:
 \begin{itemize}
-    \item \emph{Autoencoder anomaly detection:} trained on healthy-only rows. A healthy hold-out split is used for early stopping and to set the anomaly threshold; failure rows are used only for evaluation and not for training.
-    \item \emph{Supervised classifiers and clustering:} a balanced 50:50 set by taking all failure rows we found and sampling the same number of healthy rows at random. This avoids the extreme class imbalance during training. The final learning dataset comprises 4{,}414 failure and 4{,}414 healthy records.
+    \item \emph{Healthy-only sample} (for autoencoder training): we sampled up to 1{,}000 healthy rows per daily CSV, getting 365{,}000 healthy rows, split 80/20 into 292{,}000 for training and 73{,}000 for validation and threshold selection. No failure rows were used.
+    \item \emph{Balanced 50:50 set} (for supervised models and clustering): all 4{,}414 failure rows plus 4{,}414 healthy rows sampled at random, giving 8{,}828 records total. Used for training the random forest and bottleneck classifier, and for learning HDBSCAN clusters.
 \end{itemize}
 
 \textbf{Prediction target.} Each record is a single daily SMART snapshot. Positive examples are failure-day records — the daily report on which a drive was marked as failed. Healthy instances are snapshots from drives that did not fail on that day. The system does not track a drive over multiple days and does not use a defined lead time (e.g.\ 1 or 7 days before failure). A healthy label on one day therefore does not imply long-term health; it only means the drive had not failed by that date.
@@ -100,7 +100,18 @@ Machine learning (ML) applied to raw SMART attribute values, rather than the man
   \item Engineered: \texttt{any\_critical\_error}, \texttt{total\_error\_count}, \texttt{error\_per\_gb}
 \end{itemize}
 
-\textbf{Models and aggregation.} The full implementation is available at~\cite{petek2026github}. We train four components on the same features: (1) a random forest classifier (scikit-learn) that outputs a failure probability; (2) a TensorFlow autoencoder trained only on healthy rows, where the reconstruction error is turned into a 0--1 anomaly score with a percentile threshold; (3) a small dense classifier trained on the autoencoder bottleneck to predict failure probability; and (4) HDBSCAN clustering on the bottleneck space, where cluster risk is the empirical failure rate of that cluster (outliers fall back to a default risk). To obtain a single score, we compute an Aggregated Health Index (AHI) as a weighted root-mean-square of the four component scores, then clip the index for stability. We used fixed manual weights (RF 0.30, bottleneck classifier 0.40, anomaly 0.20, clustering 0.10), and the final AHI can be explained from per-component contributions.
+\textbf{Models.} The full implementation is available at~\cite{petek2026github}. All four models start from the same 19 processed features but differ in their input representation and training data:
+
+\begin{enumerate}
+    \item \emph{Random forest} (scikit-learn): input is the 19 features plus manufacturer one-hot encoding. Trained on the balanced 8{,}828-row dataset with 5-fold cross-validation. Outputs a failure probability in $[0,1]$.
+    \item \emph{Anomaly autoencoder} (TensorFlow): input is the 19 features after MinMax scaling. Architecture $19 \to 64 \to 32 \to \mathbf{12} \to 32 \to 64 \to 19$. Trained only on 292{,}000 healthy rows; 73{,}000 healthy rows used for validation and threshold selection (99th percentile of reconstruction error). Failure rows were never used for training. Outputs a 0--1 anomaly score.
+    \item \emph{Bottleneck classifier} (TensorFlow, two-stage): a separate autoencoder with architecture $19 \to 64 \to 32 \to \mathbf{8} \to 32 \to 64 \to 19$ is trained on the same 292{,}000 healthy rows. Its 8-dimensional encoder is then frozen. A small dense classifier ($8 \to 16 \to 8 \to 1$, sigmoid) is trained on the 8-dimensional bottleneck features of the balanced 8{,}828-row dataset, split 70/15/15 (train/val/test). Output is a failure probability in $[0,1]$.
+    \item \emph{HDBSCAN clustering}: input is the same 8-dimensional bottleneck from the classifier autoencoder. Learned on the full balanced 8{,}828-row dataset. Each cluster is assigned a risk score equal to its failure rate in the training data.
+\end{enumerate}
+
+The bottleneck classifier and HDBSCAN share the same 8-dimensional encoder, so their outputs are not independent. The anomaly autoencoder is a separate model with its own 12-dimensional bottleneck.
+
+\textbf{Aggregation.} To obtain a single score, we compute an Aggregated Health Index (AHI) as a weighted root-mean-square of the four component scores, then clip the index for stability. We used fixed manual weights (RF 0.30, bottleneck classifier 0.40, anomaly 0.20, clustering 0.10), and the final AHI can be explained from per-component contributions.
 
 \section{Results}
 \label{sec:results}
