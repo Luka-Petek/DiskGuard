@@ -184,7 +184,7 @@ The 2023 evaluation is completely out-of-sample -- no 2023 records were used at 
 
 Two further limitations are worth noting. First, all training data comes from a single storage provider (Backblaze), so results may not generalise directly to other hardware vendors or real-life scenarios. Second, the system outputs the current health state of a drive rather than an estimated probability or time of a future failure — remaining life estimation is left for future work.
 
-The entire pipeline runs offline and relies on a single disk snapshot, so it can run on edge devices or NAS systems without a network connection.
+The implementation also includes a FastAPI backend and a React/Vite dashboard that displays AHI, the four component scores, drive information, and analysis history. The complete application, setup instructions, dashboard screenshot, and API usage are documented in the GitHub README~\cite{petek2026github}. The pipeline processes a single disk snapshot locally and does not require a remote inference service; however, its suitability for resource-constrained edge devices or NAS systems has not yet been benchmarked.
 
 \section{Conclusion and Future Work}
 \label{sec:conclusion}

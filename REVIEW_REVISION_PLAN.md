@@ -575,3 +575,54 @@ A defensible target claim is:
 > The system provides a preliminary, component-wise current-state risk assessment from SMART snapshots and is evaluated for unseen-drive and later-period generalization.
 
 Do not claim that the hybrid is superior to the bottleneck classifier unless the common Q1 2026 evaluation supports that conclusion.
+
+# Progress log
+
+## Done
+
+- **M0** — DOI `\acmDOI{10.70314/is.2026.sikdd.97}` added to `paper/main.tex`.
+- **M1** — paper reframed to current-state assessment; early-warning/prediction language removed; AHI described as 0–100 index, not probability; component-verdict sentence moved to Discussion.
+- **M6** — failure-day target clarified in paper (positives = failure-day snapshot, no lead time).
+- **M7** — AHI index framing done in paper and code comments.
+- **M9** — weights documented as manual/heuristic (RF 0.30, bottleneck 0.40, anomaly 0.20, cluster 0.10); RMS edge case (anomaly=1 → 44.7 < 45) documented.
+- **M11 (partial)** — shared-encoder dependence acknowledged; "nearest cluster" corrected to `approximate_predict`; cluster count, noise fraction (~13.7%), outlier failure rate (~66.9%) added to paper.
+- **M2 (partial)** — `srcML/evaluate_2026.py` evaluates all 4 components + AHI on identical Q1 2026 records; metrics CSV + per-record CSV + plot produced.
+- **M5 (code)** — serial-grouped splitting implemented:
+  - `serial_grouped_masks` added to `srcML/nn_preprocessing/preprocessing.py`;
+  - `train_test_split` replaced in `tensorflow_anomaly/train_autoencoder.py`, `tensorflow_classification/train_autoencoder.py`, `tensorflow_classification/train_bottleneck_classifier.py`;
+  - `umap_hdbscan.py` now fits HDBSCAN on train serials and evaluates on held-out serials via `approximate_predict`;
+  - `smart_scan_model.ipynb` (RF): `train_test_split` → serial-grouped split, `KFold` → `GroupKFold`.
+- **M5 (2026 side)** — `build_current_state_evaluation_from_csvs` excludes 2025 serials before sampling; `evaluate_2026.py` asserts no overlap; strict-unseen balanced cohort = 1,018 failed + 1,018 healthy.
+
+## In progress
+
+- **Retraining with grouped splits** — user is running: anomaly AE → classification AE → bottleneck classifier → HDBSCAN → RF notebook. Artifacts will be overwritten (old ones in git history).
+
+## Remaining
+
+- Re-run `evaluate_2026.py` after retraining; new metrics table + `ahi_2026.png`.
+- **M2 (rest)** — aggregation variants (arithmetic mean, RMS without anomaly) on same records; bootstrap CIs.
+- **M3** — error-overlap/complementarity analysis between components and AHI.
+- **M4** — dataset-flow table in paper (exact counts per stage).
+- **M8** — prevalence-scenario PPV (0.1%/0.5%/1%) + operational-precision discussion.
+- **M10** — compare AHI variants on 2026 (arithmetic mean, no-anomaly RMS).
+- **M11 (rest)** — worked cluster example with a real 2026 record in Clustering section.
+- **S1** — README reconciliation.
+- **S2** — reproducibility details (counts, formulas, imputation, missingness).
+- **S3** — metric-specific "best" wording (RF ROC-AUC now available: 0.9216 on 2026).
+- **S4** — false-negative analysis or remove "silent failure" claim.
+- **S5** — runtime/memory benchmark or soften edge claims.
+- Paper: update Table 1 + Results with 2026 numbers, swap figure to `ahi_2026.png`.
+- LaTeX compile + final claim-to-evidence audit.
+
+## Current 2026 results (strict unseen, n=2,036)
+
+| Model | ROC-AUC | PR-AUC | Recall | Precision | F1 |
+|---|---:|---:|---:|---:|---:|
+| Random Forest | 0.9216 | 0.9382 | 0.812 | 0.924 | 0.865 |
+| Bottleneck classifier | 0.9050 | 0.9143 | 0.859 | 0.854 | 0.856 |
+| Anomaly detector | 0.7267 | 0.7361 | 0.490 | 0.894 | 0.633 |
+| HDBSCAN cluster risk | 0.8726 | 0.8565 | 0.815 | 0.791 | 0.803 |
+| AHI | 0.9243 | 0.9379 | 0.777 | 0.911 | 0.839 |
+
+Mean AHI: healthy 21.2, failed 71.4 (separation ~50 points). These numbers are from the **pre-retrain** artifacts — they will change after grouped retraining.
