@@ -184,7 +184,7 @@ The 2023 evaluation is completely out-of-sample -- no 2023 records were used at 
 
 Two further limitations are worth noting. First, all training data comes from a single storage provider (Backblaze), so results may not generalise directly to other hardware vendors or real-life scenarios. Second, the system outputs the current health state of a drive rather than an estimated probability or time of a future failure — remaining life estimation is left for future work.
 
-The implementation also includes a FastAPI backend and a React/Vite dashboard that displays AHI, the four component scores, drive information, and analysis history. The complete application, setup instructions, dashboard screenshot, and API usage are documented in the GitHub README~\cite{petek2026github}. The pipeline processes a single disk snapshot locally and does not require a remote inference service; however, its suitability for resource-constrained edge devices or NAS systems has not yet been benchmarked.
+The implementation also includes a React dashboard that shows AHI, the four component scores, disk information, and analysis history. Setup instructions, a dashboard screenshot, and API usage are available in the GitHub README~\cite{petek2026github}. The pipeline works locally and does not need a remote service. A small CPU test on the development computer showed the model files used to evaluate one disk were about 7.1~MB in total. Evaluating one disk took about 0.20~s. The program used about 0.40~GB of memory after loading the models and about 0.95~GB during normal evaluation. Testing on real NAS or edge hardware is left for future work.
 
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
