@@ -578,51 +578,58 @@ Do not claim that the hybrid is superior to the bottleneck classifier unless the
 
 # Progress log
 
-## Done
+## Completed implementation and analysis
 
-- **M0** — DOI `\acmDOI{10.70314/is.2026.sikdd.97}` added to `paper/main.tex`.
-- **M1** — paper reframed to current-state assessment; early-warning/prediction language removed; AHI described as 0–100 index, not probability; component-verdict sentence moved to Discussion.
-- **M6** — failure-day target clarified in paper (positives = failure-day snapshot, no lead time).
-- **M7** — AHI index framing done in paper and code comments.
-- **M9** — weights documented as manual/heuristic (RF 0.30, bottleneck 0.40, anomaly 0.20, cluster 0.10); RMS edge case (anomaly=1 → 44.7 < 45) documented.
-- **M11 (partial)** — shared-encoder dependence acknowledged; "nearest cluster" corrected to `approximate_predict`; cluster count, noise fraction (~13.7%), outlier failure rate (~66.9%) added to paper.
-- **M2 (partial)** — `srcML/evaluate_2026.py` evaluates all 4 components + AHI on identical Q1 2026 records; metrics CSV + per-record CSV + plot produced.
-- **M5 (code)** — serial-grouped splitting implemented:
-  - `serial_grouped_masks` added to `srcML/nn_preprocessing/preprocessing.py`;
-  - `train_test_split` replaced in `tensorflow_anomaly/train_autoencoder.py`, `tensorflow_classification/train_autoencoder.py`, `tensorflow_classification/train_bottleneck_classifier.py`;
-  - `umap_hdbscan.py` now fits HDBSCAN on train serials and evaluates on held-out serials via `approximate_predict`;
-  - `smart_scan_model.ipynb` (RF): `train_test_split` → serial-grouped split, `KFold` → `GroupKFold`.
-- **M5 (2026 side)** — `build_current_state_evaluation_from_csvs` excludes 2025 serials before sampling; `evaluate_2026.py` asserts no overlap; strict-unseen balanced cohort = 1,018 failed + 1,018 healthy.
+- **M0 — DOI:** `\acmDOI{10.70314/is.2026.sikdd.97}` is in `paper/main.tex`.
+- **M1/M6 — Claim and target:** the work is framed as current-state failure-day assessment, with no lead-time, remaining-life, calibrated-probability, or demonstrated early-warning claim.
+- **M2 — Common-record evaluation:** `srcML/evaluate_2026.py` scores RF, bottleneck classifier, anomaly detector, HDBSCAN, and AHI on the same strict-unseen Q1 2026 cohort. The final evaluation was rerun after grouped retraining.
+- **M3 — Error overlap:** error-overlap/complementarity analysis was completed by the user; its final factual result only needs to be inserted into the paper.
+- **M5 — Leakage control:** serial-grouped training/validation/test splitting is implemented for the neural models, HDBSCAN, and RF notebook; artifacts were retrained. The Q1 2026 evaluator excludes every prepared-2025 serial before sampling and asserts no overlap.
+- **M7 — AHI interpretation:** AHI is documented as a 0--100 current-state index, not a failure probability.
+- **M9 — Thresholds and weights:** thresholds are consistently 45/65; fixed manual weights are RF 0.30, bottleneck 0.40, anomaly 0.20, and clustering 0.10.
+- **M10 — RMS trade-off:** the anomaly-only edge case ($\sqrt{0.20}\times100=44.7$) and its consequence are explicitly documented. The current weighted RMS is intentionally retained as a design trade-off; no post-hoc threshold, weight, arithmetic-mean, or no-anomaly replacement will be selected from the 2026 test labels.
+- **M11 — Dependence and clustering:** shared encoder dependence, 8-dimensional HDBSCAN input, label-informed cluster risks, noise/outlier behaviour, and `approximate_predict` assignment are documented. HDBSCAN now also has a serial-disjoint internal test.
+- **S1 — README consistency:** root and ML README files were reconciled with current-state terminology, grouped splits, 12D/8D encoders, UMAP visualization-only use, thresholds, and shared-encoder dependence.
+- **S5 — Deployment evidence:** local CPU model size, latency, and memory measurements are in the paper; NAS/edge suitability remains explicitly untested.
 
-## In progress
+## Deliberate scope decisions
 
-- **Retraining with grouped splits** — user is running: anomaly AE → classification AE → bottleneck classifier → HDBSCAN → RF notebook. Artifacts will be overwritten (old ones in git history).
+- The reviewer suggested a weighted arithmetic average and AHI without the anomaly term. We considered the RMS edge case and retained the existing RMS design, documenting the trade-off instead of choosing a new aggregation after seeing external-test labels.
+- Bootstrap confidence intervals and extra AHI ablations are not required for the deadline revision and are no longer active tasks.
+- A worked per-disk clustering example is optional if page space remains; clustering assignment and interpretation are already explained at method level.
 
-## Remaining
+## Paper updates completed
 
-- Re-run `evaluate_2026.py` after retraining; new metrics table + `ahi_2026.png`.
-- **M2 (rest)** — aggregation variants (arithmetic mean, RMS without anomaly) on same records; bootstrap CIs.
-- **M3** — error-overlap/complementarity analysis between components and AHI.
-- **M4** — dataset-flow table in paper (exact counts per stage).
-- **M8** — prevalence-scenario PPV (0.1%/0.5%/1%) + operational-precision discussion.
-- **M10** — compare AHI variants on 2026 (arithmetic mean, no-anomaly RMS).
-- **M11 (rest)** — worked cluster example with a real 2026 record in Clustering section.
-- **S1** — README reconciliation.
-- **S2** — reproducibility details (counts, formulas, imputation, missingness).
-- **S3** — metric-specific "best" wording (RF ROC-AUC now available: 0.9216 on 2026).
-- **S4** — false-negative analysis or remove "silent failure" claim.
-- **S5** — runtime/memory benchmark or soften edge claims.
-- Paper: update Table 1 + Results with 2026 numbers, swap figure to `ahi_2026.png`.
-- LaTeX compile + final claim-to-evidence audit.
+- Replaced the old 2023 100-record AHI result and graph with the strict-unseen evaluation from the first quarter of 2026 (1{,}018 failure-day and 1{,}018 healthy records).
+- Replaced the old mismatched Table 1 with a same-record comparison of RF, bottleneck classifier, anomaly detector, HDBSCAN, and AHI, including ROC-AUC, PR-AUC, recall, false-positive rate, precision, and F1.
+- Updated the abstract, Results subsections, Discussion, and Conclusion with the final evaluation metrics.
+- Updated RF, autoencoder, bottleneck-classifier, and HDBSCAN training/evaluation descriptions with serial-grouped splitting and regenerated counts.
+- Updated HDBSCAN to 21 clusters, 20.7\% noise, 66.4\% outlier failure rate, and `approximate_predict` assignment.
+- Corrected the prepared-data date range to 2024-10-01--2025-09-30.
+- Added the balanced-evaluation precision limitation and the 0.1\%/0.5\%/1\% PPV examples.
+- Removed the unsupported silent-failure explanation and replaced universal "best model" wording with metric-specific comparisons.
+- Kept the original paper structure and wording wherever the old text was still correct; changes are limited to facts affected by retraining, re-evaluation, and reviewer comments.
 
-## Current 2026 results (strict unseen, n=2,036)
+## Paper project structure
 
-| Model | ROC-AUC | PR-AUC | Recall | Precision | F1 |
-|---|---:|---:|---:|---:|---:|
-| Random Forest | 0.9216 | 0.9382 | 0.812 | 0.924 | 0.865 |
-| Bottleneck classifier | 0.9050 | 0.9143 | 0.859 | 0.854 | 0.856 |
-| Anomaly detector | 0.7267 | 0.7361 | 0.490 | 0.894 | 0.633 |
-| HDBSCAN cluster risk | 0.8726 | 0.8565 | 0.815 | 0.791 | 0.803 |
-| AHI | 0.9243 | 0.9379 | 0.777 | 0.911 | 0.839 |
+The final paper is maintained in the Overleaf-style project shown in the user's screenshot, not only in the repository layout. The relevant paper files are:
 
-Mean AHI: healthy 21.2, failed 71.4 (separation ~50 points). These numbers are from the **pre-retrain** artifacts — they will change after grouped retraining.
+- `main.tex`
+- `references.bib`
+- `acmart.cls`
+- `my_notes.txt`
+- `sample-sis-2026.tex`
+- `figures/ahi_2026.png`
+
+Paper figures must use the Overleaf-relative path, for example:
+
+```latex
+\includegraphics[width=\linewidth]{figures/ahi_2026.png}
+```
+
+## Actually remaining
+
+The revision content is complete. No additional model training, evaluation, comparison, overlap analysis, commit reference, or paper section is required.
+
+1. **Final verification:** compile LaTeX and verify the DOI, citations, table width, figure path, page count, and warnings.
+2. **Submission:** leave the EasyChair upload to the user.
