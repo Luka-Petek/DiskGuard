@@ -117,6 +117,7 @@ def main() -> None:
     print(f"Failure eval raw rows: {len(failure_raw):,}")
 
     #healthy vrstice diskov, ki jih evaluiramo kot failure, izlocimo iz učne množice (drive-disjoint eval)
+    # "isti disk ne more biti hkrati v"
     if not failure_raw.empty:
         eval_serials = set(failure_raw["serial_number"].astype(str))
         healthy_raw = healthy_raw[~healthy_raw["serial_number"].astype(str).isin(eval_serials)]
