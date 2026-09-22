@@ -4,7 +4,7 @@
 
 <img src="frontend/src/assets/logo-wordmark.svg" alt="DiskGuard" width="320" />
 
-**Hard drive failure prediction & Aggregated Health Index — 4 ML models fused into one real-time verdict.**
+**Hard drive failure assessment & Aggregated Health Index — 4 ML components fused into one current-state verdict.**
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](frontend/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)](backend/)
@@ -22,33 +22,31 @@
 
 ## About the Project
 
-A machine learning system that predicts hard drive failures from real-time **SMART** sensor data. Four independent models — spanning supervised deep learning, unsupervised anomaly detection, and density-based clustering — are fused into a single interpretable score: the **Aggregated Health Index (AHI)**.
+A machine learning system for assessing the current condition of hard drives from **SMART** sensor data. Four model components — spanning supervised learning, unsupervised anomaly detection, and density-based clustering — are fused into a single interpretable score: the **Aggregated Health Index (AHI)**. The bottleneck classifier and HDBSCAN share the same encoder, so the components are not independent.
 
 Built on the [Backblaze 2025](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data) open dataset: **32M+ records**, **365 daily CSV files**, **4,414 confirmed failure events**.
 
 > **For a detailed ML engineering breakdown** — preprocessing logic, model architectures, training configs, and AHI fusion math — see [`srcML/README.md`](srcML/README.md).
 
-- **89.1% failure recall** — catches 9 out of 10 failing disks before they die
-- **4 ML techniques, one final score** — RF, deep AE, bottleneck classifier and HDBSCAN each vote independently; results fused into a single AHI verdict
-- **32M+ real-world sensor records** — trained on a full year of Backblaze production fleet data, not synthetic benchmarks
-- **Lightweight inference** — suitable for embedded systems, NAS devices, and edge deployments
-- **Instant real-time prediction** — plug in any `smartctl -j` JSON output, get a risk score and verdict in seconds
+- **Four ML components, one final score** — RF, deep AE, bottleneck classifier and HDBSCAN are combined into one AHI verdict while their individual scores remain visible
+- **32M+ real-world sensor records** — trained on Backblaze production fleet data, not synthetic benchmarks
+- **Local evaluation** — upload a `smartctl -j` JSON output and receive an AHI score and verdict without a remote service
 - **Fully offline** — no cloud, no telemetry, no data leaves the machine
 
-*The model evaluates the current health condition of the drive and outputs a current risk percentage — it assesses present state, not future failure prediction.*
+*The model evaluates the current condition of a drive and outputs an AHI risk index from 0 to 100 points. It does not predict future failure or estimate remaining drive life.*
 
 ---
 
-## Model Performance Summary
+## Model Components
 
-| Model | Method | ROC-AUC | Failure Recall | AHI Weight |
-|---|---|---|---|---|
-| **Model 0** — Sklearn RF | Random Forest (19 SMART features) | — | 86.0 % | 0.30 |
-| **Model 1** — Anomaly AE | Unsupervised Autoencoder (12-dim bottleneck) | 0.901 | 44.7 % | 0.20 |
-| **Model 2** — Bottleneck Clf | AE encoder → 8-dim → Supervised Classifier | **0.929** | **89.1 %** | **0.40** |
-| **Model 3** — HDBSCAN | UMAP + density clustering (18 clusters) | — | — | 0.10 |
+| Component | Method | Representation | AHI Weight |
+|---|---|---|---:|
+| **Model 0** — Random Forest | Supervised Random Forest | 19 processed SMART features + manufacturer encoding | 0.30 |
+| **Model 1** — Anomaly AE | Healthy-only autoencoder | 19 features → 12-dimensional bottleneck | 0.20 |
+| **Model 2** — Bottleneck classifier | Supervised classifier | 19 features → shared 8-dimensional encoder | 0.40 |
+| **Model 3** — HDBSCAN | Density-based clustering | Same shared 8-dimensional encoder | 0.10 |
 
-> Impl 2 carries the highest weight — it achieves the best balance of precision and recall while being trained on a perfectly balanced dataset (4,414 failures : 4,414 healthy).
+The final evaluation compares all four components and AHI on the same serial-disjoint Q1 2026 records. The paper reports the resulting metrics and cohort counts.
 
 ---
 
@@ -66,7 +64,7 @@ diskFailurePrediction/
 │   │   ├── train_autoencoder.py        #   Training script (healthy-only)
 │   │   ├── predict_autoencoder.py      #   Single-disk inference
 │   │   ├── disk_autoencoder.keras      #   Trained model
-│   │   ├── tf_scaler.pkl               #   Fitted StandardScaler
+│   │   ├── tf_scaler.pkl               #   Fitted MinMaxScaler
 │   │   ├── tf_metadata.json            #   Threshold + evaluation metrics
 │   │   └── logs/                       #   TensorBoard training logs
 │   ├── tensorflow_classification/      # Impl 2 — Bottleneck classifier (2-stage)
@@ -115,7 +113,7 @@ A classical supervised pipeline trained in [`smart_scan_model.ipynb`](srcML/skle
 3. SMART 188 — Command Timeout
 4. SMART 197 — Current Pending Sector Count
 
-**Performance:** Accuracy 90.15% · Recall 86.0% · F1 0.88
+The RF uses serial-grouped train/test splitting. Final component metrics are reported from the common Q1 2026 serial-disjoint evaluation rather than from this README.
 
 ![classification.png](Graphs/classification.png)
 
@@ -123,14 +121,11 @@ A classical supervised pipeline trained in [`smart_scan_model.ipynb`](srcML/skle
 
 ## Model 1 — Autoencoder Anomaly Detection (Unsupervised)
 
-The autoencoder is trained **exclusively on 292,000 healthy disk rows**. It learns to reconstruct normal SMART patterns. When a degraded disk is passed through the network, reconstruction error spikes above the learned 99th-percentile threshold — flagging it as an anomaly without ever having seen a failure during training.
+The autoencoder is trained **only on healthy disk rows**. It learns to reconstruct normal SMART patterns. When a disk with an unusual SMART pattern is evaluated, reconstruction error can rise above the learned 99th-percentile threshold. Failure rows are not used to train this autoencoder.
 
 **Architecture:** 19 → 64 → 32 → **12** (bottleneck) → 32 → 64 → 19
 
-**Evaluation on held-out failure rows (after optimisation, converged at epoch 37/60):**
-- ROC-AUC: **0.901** · PR-AUC: **0.600** · Failure detection rate: **44.7%** at 1% false-positive rate
-- Failure F1: **0.555** · Failure precision: **0.730** — a 71% improvement in F1 vs. the baseline run
-- Healthy precision: 96.7% — the model remains highly conservative to avoid false alarms
+The autoencoder's detailed validation metrics are stored in `tf_metadata.json`. For the final comparison, all components are scored on the same serial-disjoint Q1 2026 records.
 
 ![Autoencoder Architecture](Graphs/nn_autoencoder.png)
 
@@ -145,17 +140,7 @@ python srcML/tensorflow_anomaly/predict_autoencoder.py --input DiskJson/disk_dat
 
 The strongest individual signal in the ensemble. A two-stage pipeline where a dedicated autoencoder first compresses the 19 SMART features into an **8-dimensional bottleneck** (optimal dimensionality determined empirically), and a supervised feedforward classifier then acts on those distilled, noise-reduced features.
 
-Training used a perfectly balanced 50:50 split: all **4,414 confirmed failures** against an equal number of healthy rows.
-
-| Metric | Value |
-|---|---|
-| ROC-AUC | **0.9289** |
-| PR-AUC | **0.9337** |
-| Failure Recall | **89.1 %** |
-| Failure F1 | **88.7 %** |
-| Accuracy | 88.7 % |
-
-> Convergence at epoch 68/100 (early stopping) — no signs of overfitting on the balanced test set.
+Training uses a balanced labelled dataset and serial-grouped train/validation/test partitions, so records from the same drive do not cross the partitions. Final component metrics are reported from the common Q1 2026 serial-disjoint evaluation.
 
 ![Classifier Architecture](Graphs/nn_classification.png)
 
@@ -171,7 +156,7 @@ python srcML/tensorflow_classification/predict_bottleneck.py --input DiskJson/di
 
 Density-based clustering directly on the **8-dim bottleneck representation** from Impl 2's encoder. UMAP reduces the space for visualization; HDBSCAN clusters in the full 8-dim space without requiring a pre-specified cluster count.
 
-**Result: 18 natural clusters** discovered, each assigned an empirical failure rate from the training set. Outlier points (13.67% of data) show a **66.9% failure rate** — significantly above the dataset average — making cluster membership a meaningful risk signal on its own.
+HDBSCAN is fitted on the training serials in the 8-dimensional encoder space. Each cluster receives an empirical failure rate from the training labels, and held-out records are assigned with `approximate_predict`. UMAP is used only for visualization. Cluster risks are index components, not fleet failure probabilities.
 
 ![UMAP + HDBSCAN](Graphs/umap_hdbscan.png)
 
@@ -194,9 +179,7 @@ All four models are fused into a single score using a **weighted root-mean-squar
 | A | Anomaly AE normalized score | 0.20 |
 | C | HDBSCAN cluster failure rate | 0.10 |
 
-**Holdout evaluation on 100 disks from the Backblaze 2023 dataset** (not used in training). Mean AHI: 33.7% (healthy) vs 58.7% (failed) — ~25 percentage point separation.
-
-![AHI holdout distribution](Graphs/ahi_color_rock_holdout2023.png)
+AHI is evaluated as a 0–100 index in points, not as a calibrated failure probability. The primary external evaluation uses a balanced, serial-disjoint cohort from Q1 2026: failure-day records and healthy records from drives that did not fail during the quarter and were not present in the prepared 2025 training data. The evaluation script writes the per-record scores, component metrics, and plot to the `DiskJson/` and `Graphs/` directories. A small CPU test measured about 7.1 MB of model files and about 0.20 s to evaluate one disk, but TensorFlow used about 0.95 GB of memory during normal evaluation. NAS and edge-device performance has not been tested.
 
 ### Run on any disk:
 ```bash

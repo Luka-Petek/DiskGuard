@@ -195,6 +195,72 @@ def build_balanced_dataset_from_csvs(
     print(f"Healthy po izenacitvi (50:50): {len(healthy_df):,}")
     return healthy_df, failure_df
 
+#razdelitev po serijskih številkah — vse vrstice istega diska gredo v isto množico,
+#da se isti disk ne pojavi v train in test/val hkrati (prepreci leakage)
+def serial_grouped_masks(serials, test_frac: float, random_state: int) -> tuple[np.ndarray, np.ndarray]:
+    s = pd.Series(np.asarray(serials)).astype(str)
+    unique = s.drop_duplicates().sample(frac=1.0, random_state=random_state)
+    test_serials = set(unique.iloc[: int(round(len(unique) * test_frac))])
+    is_test = s.isin(test_serials).to_numpy()
+    return ~is_test, is_test
+
+# to je samo za evaluation nad 2026 podatki (prejo smo imeli evaluacijo nad 2025)
+def build_current_state_evaluation_from_csvs(
+    data_dir: Path,
+    n_healthy: int | None = None,
+    random_state: int = 42,
+    excluded_serials: set[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    csv_files = sorted(glob.glob(str(data_dir / "**" / "*.csv"), recursive=True))
+    if not csv_files:
+        raise FileNotFoundError(f"Ni najdenih CSV datotek v: {data_dir}")
+
+    failure_parts = []
+    failed_serials = set()
+    for csv_path in csv_files:
+        df = read_csv_robust(csv_path)
+        failed = df[df["failure"] == 1]
+        if not failed.empty:
+            failure_parts.append(failed)
+            failed_serials.update(failed["serial_number"].astype(str))
+
+    if not failure_parts:
+        raise RuntimeError("Ni bilo najdenih failure vrstic.")
+
+    failure_df = pd.concat(failure_parts, ignore_index=True)
+    excluded_serials = excluded_serials or set()
+    failure_df = failure_df[
+        ~failure_df["serial_number"].astype(str).isin(excluded_serials)
+    ].reset_index(drop=True)
+    target = min(n_healthy, len(failure_df)) if n_healthy else len(failure_df)
+    if len(failure_df) > target:
+        failure_df = failure_df.sample(n=target, random_state=random_state).reset_index(drop=True)
+    healthy_per_file = max(1, int(np.ceil(target * 2 / len(csv_files))))
+    healthy_parts = []
+
+    for i, csv_path in enumerate(csv_files):
+        df = read_csv_robust(csv_path)
+        healthy = df[
+            (df["failure"] == 0)
+            & (~df["serial_number"].astype(str).isin(failed_serials))
+            & (~df["serial_number"].astype(str).isin(excluded_serials))
+        ]
+        if not healthy.empty:
+            healthy_parts.append(
+                healthy.sample(
+                    n=min(healthy_per_file, len(healthy)),
+                    random_state=random_state + i,
+                )
+            )
+
+    healthy_df = pd.concat(healthy_parts, ignore_index=True)
+    healthy_df = healthy_df.drop_duplicates(subset="serial_number")
+    if len(healthy_df) < target:
+        raise RuntimeError(f"Premalo never-failed healthy vrstic: {len(healthy_df):,} < {target:,}")
+    healthy_df = healthy_df.sample(n=target, random_state=random_state).reset_index(drop=True)
+
+    return healthy_df, failure_df
+
 
 #za ciscenje in trans. podatkov
 def prepare_features(df_raw: pd.DataFrame) -> pd.DataFrame:

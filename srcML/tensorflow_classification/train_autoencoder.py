@@ -11,7 +11,6 @@ import joblib
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import average_precision_score, classification_report, roc_auc_score
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -25,6 +24,7 @@ from srcML.nn_preprocessing.preprocessing import (
     build_dataset_from_many_csvs,
     prepare_features,
     reconstruction_errors,
+    serial_grouped_masks,
 )
 
 #artefakti Impl 2 avtoenkoder — loceni od Impl 1 (tensorflow_anomaly/)
@@ -116,14 +116,17 @@ def main() -> None:
     print(f"Healthy raw rows: {len(healthy_raw):,}")
     print(f"Failure eval raw rows: {len(failure_raw):,}")
 
+    #healthy vrstice diskov, ki jih evaluiramo kot failure, izlocimo iz učne množice (drive-disjoint eval)
+    # "isti disk ne more biti hkrati v"
+    if not failure_raw.empty:
+        eval_serials = set(failure_raw["serial_number"].astype(str))
+        healthy_raw = healthy_raw[~healthy_raw["serial_number"].astype(str).isin(eval_serials)]
+
     X_healthy = prepare_features(healthy_raw)
 
-    X_train, X_val = train_test_split(
-        X_healthy,
-        test_size=0.2,
-        random_state=args.random_state,
-        shuffle=True,
-    )
+    #razdelitev po serijskih številkah (isti disk ne sme biti v obeh množicah)
+    train_mask, val_mask = serial_grouped_masks(healthy_raw["serial_number"], 0.2, args.random_state)
+    X_train, X_val = X_healthy[train_mask], X_healthy[val_mask]
 
     scaler = MinMaxScaler()
     X_train_scaled = scaler.fit_transform(X_train).astype("float32")

@@ -90,8 +90,8 @@ Input(19) → Dense(64, relu) → BatchNorm → Dropout(0.10)
 ```
 
 ### Training
-- **Data**: healthy rows only, sampled via `build_dataset_from_many_csvs` (1000 healthy/file, 100 failure/file for eval)
-- **Split**: 80/20 train/val on healthy rows (`train_test_split`, seed 42)
+- **Data**: healthy rows only, sampled via `build_dataset_from_many_csvs`; healthy rows from drives used as failure-evaluation records are excluded
+- **Split**: 80/20 train/validation by serial number (seed 42); all rows from one drive stay in one partition
 - **Scaler**: `MinMaxScaler` fit on train
 - **Loss**: MAE (mean absolute error between input and reconstruction)
 - **Optimizer**: Adam, lr=0.001
@@ -104,8 +104,8 @@ Input(19) → Dense(64, relu) → BatchNorm → Dropout(0.10)
 - **Anomaly flag**: `error > threshold`
 
 ### Evaluation
-- ROC-AUC and PR-AUC computed on: validation healthy errors (label=0) + failure errors (label=1)
-- Results: ROC-AUC 0.901, PR-AUC 0.600, failure recall 44.7% at 1% FPR
+- The autoencoder is evaluated using held-out healthy rows and failure-day rows; final component comparison uses the same serial-disjoint Q1 2026 records for every component
+- Detailed metrics are stored in `tf_metadata.json` and in the generated Q1 2026 evaluation outputs
 
 ### Artifacts exported
 - `disk_autoencoder.keras` — full AE model
@@ -139,7 +139,7 @@ Input(8) → Dense(16, relu) → Dropout(0.2) → Dense(8, relu) → Dense(1, si
 - **Encoder**: loaded from Stage 1, frozen (`encoder.trainable = False`)
 - **Data**: 50:50 balanced via `build_balanced_dataset_from_csvs` (4,414 failures : 4,414 healthy)
 - **Feature extraction**: raw → `prepare_features` → scaler.transform → encoder.predict → 8-dim bottleneck
-- **Split**: 70/15/15 stratified (`train_test_split`, seed 42)
+- **Split**: 70/15/15 by serial number (seed 42); train, validation, and test serial sets are disjoint
 - **Class weights**: `compute_class_weight("balanced")` — compensates if split isn't perfectly 50:50
 - **Loss**: binary_crossentropy
 - **Optimizer**: Adam, lr=0.001
@@ -151,8 +151,9 @@ Input(8) → Dense(16, relu) → Dropout(0.2) → Dense(8, relu) → Dense(1, si
 - **Threshold**: F1-optimal on validation set via `precision_recall_curve` — finds threshold that maximizes F1
 - **High-risk threshold**: hardcoded 0.65 (separate "FAILURE" verdict from "AT_RISK")
 
-#### Evaluation (on test set, unseen during training/threshold tuning)
-- ROC-AUC 0.9289, PR-AUC 0.9337, failure recall 89.1%, failure F1 88.7%
+#### Evaluation
+- The internal test set contains serial numbers not used for training or threshold selection. The final external comparison uses the same serial-disjoint Q1 2026 records for all components.
+- Detailed metrics are stored in `bottleneck_metadata.json` and in the generated Q1 2026 evaluation outputs.
 
 #### Artifacts exported
 - `disk_bottleneck_classifier.keras` — classifier model
@@ -214,7 +215,7 @@ RMS amplifies large individual signals. A disk scoring 0.9 on one model and 0.1 
 ### Inference flow (`ahi_final.py`)
 1. Load all 4 model artifacts (RF pipeline, encoder+classifier+scaler, AE+scaler, HDBSCAN+metadata)
 2. Parse smartctl JSON → `pretvori_json_v_surovi_df` → raw DataFrame
-3. Score each model independently (all share the same `prepare_features` preprocessing)
+3. Score each component separately; the bottleneck classifier and HDBSCAN share the encoder and scaler
 4. RMS fusion → clamp → verdict
 
 ---

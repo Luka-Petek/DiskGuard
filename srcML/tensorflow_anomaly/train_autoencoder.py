@@ -11,7 +11,6 @@ import joblib
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import average_precision_score, classification_report, roc_auc_score
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 #uporabimo procesiranje od skleanr
 from srcML.sklearn.disk_pipeline import procesiraj_podatke
 #preprocessing za NN
-from srcML.nn_preprocessing.preprocessing import build_dataset_from_many_csvs, prepare_features, reconstruction_errors
+from srcML.nn_preprocessing.preprocessing import build_dataset_from_many_csvs, prepare_features, reconstruction_errors, serial_grouped_masks
 
 FEATURE_COLUMNS = [
     "capacity_gigabytes",
@@ -141,18 +140,19 @@ def main() -> None:
         random_state=args.random_state,
     )
 
+    #healthy vrstice diskov, ki jih evaluiramo kot failure, izlocimo iz učne množice (drive-disjoint eval)
+    if not failure_raw.empty:
+        eval_serials = set(failure_raw["serial_number"].astype(str))
+        healthy_raw = healthy_raw[~healthy_raw["serial_number"].astype(str).isin(eval_serials)]
+
     print(f"Healthy raw rows: {len(healthy_raw):,}")
     print(f"Failure eval raw rows: {len(failure_raw):,}")
 
     X_healthy = prepare_features(healthy_raw)
 
-    #testna / učna množica
-    X_train, X_val = train_test_split(
-        X_healthy,
-        test_size=0.2,
-        random_state=args.random_state,
-        shuffle=True,
-    )
+    #testna / učna množica — po serijskih številkah (isti disk ne sme biti v obeh)
+    train_mask, val_mask = serial_grouped_masks(healthy_raw["serial_number"], 0.2, args.random_state)
+    X_train, X_val = X_healthy[train_mask], X_healthy[val_mask]
 
     #centriramo podatke glede na mediano
     scaler = MinMaxScaler()

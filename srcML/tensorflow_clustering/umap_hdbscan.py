@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from sklearn.metrics import average_precision_score, roc_auc_score
 from tensorboard.plugins import projector
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -25,6 +26,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from srcML.nn_preprocessing.preprocessing import (
     build_balanced_dataset_from_csvs,
     prepare_features,
+    serial_grouped_masks,
 )
 
 DEFAULT_FAILURE_CSV = PROJECT_ROOT / "csv" / "vseOdpovedi.csv"
@@ -193,6 +195,10 @@ def main():
         [0] * len(healthy_df) + [1] * len(failure_df), dtype=np.int32
     )
 
+    #razdelitev po serijskih številkah — HDBSCAN fit na train, eval na nevidenih diskih
+    train_mask, test_mask = serial_grouped_masks(all_df["serial_number"], 0.2, args.random_state)
+    print(f"Train: {int(train_mask.sum()):,} vrstic | Test (novi diski): {int(test_mask.sum()):,} vrstic")
+
     print("Ekstrakcija bottleneck features...")
     bottleneck = extract_bottleneck(encoder, scaler, all_df)
     print(f"Bottleneck shape: {bottleneck.shape}")
@@ -214,13 +220,29 @@ def main():
         metric="euclidean",
         prediction_data=True,
     )
-    hdbscan_labels = clusterer.fit_predict(bottleneck)
+    train_labels = clusterer.fit_predict(bottleneck[train_mask])
 
-    n_clusters = len(set(hdbscan_labels)) - (1 if -1 in hdbscan_labels else 0)
-    n_outliers = int((hdbscan_labels == -1).sum())
-    print(f"HDBSCAN: {n_clusters} clusterjev, {n_outliers:,} outlierjev ({n_outliers/len(hdbscan_labels):.1%})")
+    n_clusters = len(set(train_labels)) - (1 if -1 in train_labels else 0)
+    n_outliers = int((train_labels == -1).sum())
+    print(f"HDBSCAN: {n_clusters} clusterjev, {n_outliers:,} outlierjev ({n_outliers/train_mask.sum():.1%})")
 
-    cluster_metadata = analyze_clusters(hdbscan_labels, labels_true)
+    cluster_metadata = analyze_clusters(train_labels, labels_true[train_mask])
+
+    #eval na nevidenih diskih — vsak test disk dobi risk svojega clusterja
+    test_pred, _ = hdbscan_lib.approximate_predict(clusterer, bottleneck[test_mask])
+    test_risk = np.array([cluster_metadata[str(int(c))]["risk_score"] for c in test_pred])
+    y_test = labels_true[test_mask]
+    test_eval = {
+        "roc_auc": float(roc_auc_score(y_test, test_risk)),
+        "pr_auc": float(average_precision_score(y_test, test_risk)),
+        "n_test": int(test_mask.sum()),
+    }
+    print(f"\nEval na nevidenih diskih: ROC-AUC={test_eval['roc_auc']:.4f} | PR-AUC={test_eval['pr_auc']:.4f}")
+
+    #za plot in tensorboard: train labeli + test približki
+    hdbscan_labels = np.empty(len(bottleneck), dtype=np.int64)
+    hdbscan_labels[train_mask] = train_labels
+    hdbscan_labels[test_mask] = test_pred
 
     print("\nCluster analiza:")
     for cid, info in sorted(cluster_metadata.items(), key=lambda x: int(x[0])):
@@ -231,8 +253,11 @@ def main():
     full_metadata = {
         "n_clusters": n_clusters,
         "n_outliers": n_outliers,
-        "outlier_ratio": round(n_outliers / len(hdbscan_labels), 4),
+        "outlier_ratio": round(n_outliers / int(train_mask.sum()), 4),
         "bottleneck_dim": int(bottleneck.shape[1]),
+        "train_rows": int(train_mask.sum()),
+        "test_rows": int(test_mask.sum()),
+        "test_evaluation": test_eval,
         "umap_params": {
             "n_neighbors": args.umap_neighbors,
             "min_dist": args.umap_min_dist,
