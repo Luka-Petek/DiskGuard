@@ -66,7 +66,7 @@ Machine learning methods are a viable approach to improving these basic failure 
 
 The main contributions of this paper are:
 \begin{itemize}
-    \item Four models spanning supervised and unsupervised learning -- a random forest classifier, an unsupervised autoencoder anomaly detector, a classifier built on the autoencoder bottleneck, and an HDBSCAN clustering model -- are combined into a single Aggregated Health Index (AHI) using a weighted root-mean-square formula. The bottleneck classifier and the clustering model share the same autoencoder encoder, which reduces noise by compressing the 19 input features into an 8-dimensional representation; their outputs are therefore not independent.
+    \item Four models spanning supervised and unsupervised learning -- a random forest classifier, an unsupervised autoencoder anomaly detector, a classifier built on the autoencoder bottleneck, and an HDBSCAN clustering model -- are combined into a single Aggregated Health Index (AHI).
     \item All four per-component scores remain visible alongside AHI, ensuring the final output is interpretable and traceable to each model's contribution.
     \item Evaluation results and the trade-offs of using this hybrid as a small, fully offline pipeline for data-centre and edge deployment are reported.
 \end{itemize}
@@ -119,11 +119,11 @@ The bottleneck classifier and HDBSCAN share the same 8-dimensional encoder, so t
 As this is a hybrid approach, each of the 4 components is evaluated independently first, and their combined performance is then assessed using the AHI. For a direct comparison, all components and AHI are evaluated on exactly the same strict-unseen records from the first quarter of 2026. The main metrics are summarised in Table~\ref{tab:results}. The evaluation uses equal numbers of failure and healthy records, so this balance does not represent the real fleet.
 
 \begin{table}[h]
-\fontsize{8pt}{8pt}\selectfont
 \centering
 \caption{All components and AHI evaluated on the same strict-unseen first quarter of 2026 records (1{,}018 failure and 1{,}018 healthy records).}
 \label{tab:results}
-\begin{tabular}{lcccccc}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
 \toprule
 \textbf{Model} & \textbf{ROC-AUC} & \textbf{PR-AUC} & \textbf{Recall} & \textbf{FPR} & \textbf{Precision} & \textbf{F1} \\
 \midrule
@@ -133,7 +133,8 @@ Anomaly detector      & 0.737 & 0.742 & 0.522 & 0.064 & 0.891 & 0.658 \\
 HDBSCAN cluster risk  & 0.853 & 0.816 & 0.820 & 0.227 & 0.783 & 0.801 \\
 AHI                   & 0.923 & 0.936 & 0.783 & 0.091 & 0.896 & 0.835 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{Random Forest Classifier}
