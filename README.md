@@ -18,7 +18,7 @@
 
 **Luka Petek**
 
-**Published on IJS IS conference:** https://aile3.ijs.si/dunja/SiKDD2026/Papers/IS_2026_paper__97.pdf
+**Published at the IJS Information Society conference with Prof. Dr. Vili Podgorelec:** https://aile3.ijs.si/dunja/SiKDD2026/Papers/IS_2026_paper__97.pdf
 
 ---
 
