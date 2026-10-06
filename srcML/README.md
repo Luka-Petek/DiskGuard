@@ -1,6 +1,6 @@
 # srcML — ML Pipeline Engineering Notes
 
-Detailed description of the ML process across all 4 implementations, the shared preprocessing, and the AHI fusion. Written for engineering review — every claim here is traceable to code in this directory.
+Detailed description of the ML process across all four implementations, shared preprocessing, AHI fusion, and the evaluation reported in the paper. Implementation claims are traceable to code and metadata in this directory; the raw Q1 2026 evaluation data is not tracked in the repository.
 
 ---
 
@@ -59,8 +59,8 @@ Calls `procesiraj_podatke`, then extracts 19 `FEATURE_COLUMNS`. Missing columns 
 
 ### Dataset builders
 
-- **`build_dataset_from_many_csvs`**: samples N healthy + M failure rows per CSV file. Used by Impl 1 AE (healthy-only training).
-- **`build_balanced_dataset_from_csvs`**: two-pass. Pass 1 collects ALL failure rows (from dedicated `csv/vseOdpovedi.csv` or by scanning). Pass 2 collects equal number of healthy rows. Result: 50:50 balanced. Used by Impl 2 classifier and Impl C clustering.
+- **`build_dataset_from_many_csvs`**: samples N healthy + M failure rows per CSV file. The current anomaly and classifier autoencoders use 289,982 healthy training rows and 72,481 healthy validation rows.
+- **`build_balanced_dataset_from_csvs`**: two-pass. Pass 1 collects all 4,414 failure-day rows (from `csv/vseOdpovedi.csv` or by scanning). Pass 2 collects 4,414 healthy rows. The resulting 8,828-row 50:50 set is used by the bottleneck classifier and HDBSCAN flows. The random-forest notebook prepares the same 4,414 + 4,414 class balance separately.
 
 ---
 
@@ -121,7 +121,7 @@ Input(19) → Dense(64, relu) → BatchNorm → Dropout(0.10)
 
 **File**: `srcML/tensorflow_classification/train_autoencoder.py`
 
-Same architecture as Impl 1 AE but with **bottleneck_dim = 8** (determined empirically). Trained on healthy rows only, same MinMaxScaler + MAE loss. Exports:
+Same architecture as Impl 1 AE but with **bottleneck_dim = 8**. A preliminary sweep tested 4, 6, 7, 8, 10 and 12 dimensions on a reduced sample; 8 had the highest validation ROC-AUC (0.9138). The sweep did not test the unreduced 19-dimensional input and was not serial-grouped, so it supports 8 as the best tested bottleneck size rather than a universally optimal dimension. The autoencoder is trained on healthy rows only with MinMax scaling and MAE loss. It exports:
 - `disk_clf_encoder.keras` — frozen encoder (19 → 8 dim)
 - `clf_scaler.pkl` — fitted MinMaxScaler
 - `clf_ae_metadata.json` — bottleneck_dim, training config
@@ -157,7 +157,7 @@ Input(8) → Dense(16, relu) → Dropout(0.2) → Dense(8, relu) → Dense(1, si
 
 #### Artifacts exported
 - `disk_bottleneck_classifier.keras` — classifier model
-- `bottleneck_metadata.json` — threshold, high_risk_threshold, evaluation metrics, training config, feature_columns
+- `bottleneck_metadata.json` — F1-selected threshold, evaluation metrics, training config and feature columns. The separate 0.65 high-risk boundary is defined in `predict_bottleneck.py`, not stored in this metadata file.
 
 ---
 
@@ -170,7 +170,9 @@ Input(8) → Dense(16, relu) → Dropout(0.2) → Dense(8, relu) → Dense(1, si
 2. Build 50:50 balanced dataset (same `build_balanced_dataset_from_csvs`)
 3. Extract 8-dim bottleneck features via encoder
 4. **UMAP**: reduce 8D → 2D for visualization only (n_neighbors=30, min_dist=0.1, euclidean)
-5. **HDBSCAN**: cluster on full 8D bottleneck (not UMAP 2D). min_cluster_size=50, euclidean, `prediction_data=True` for `approximate_predict` on new points
+5. **HDBSCAN**: cluster on full 8D bottleneck (not UMAP 2D). `min_cluster_size=50`, Euclidean distance, `prediction_data=True` for `approximate_predict` on new points
+
+The current metadata contains **21 clusters plus the `-1` outlier group**. In the grouped training partition, 1,463 of 7,066 records (20.7%) were assigned to the outlier group.
 
 ### Cluster risk scoring (`analyze_clusters`)
 For each cluster:
@@ -205,12 +207,30 @@ Since weights sum to 1.0, the denominator (Σw) is omitted.
 | C | HDBSCAN cluster risk_score | 0.10 | [0, 1] cluster failure rate |
 
 ### Verdict thresholds
-- HEALTHY: < 45
-- WARNING: 45–65
-- CRITICAL: > 65
+- HEALTHY: AHI < 45
+- WARNING: 45 ≤ AHI < 65
+- CRITICAL: AHI ≥ 65
+
+For binary AHI evaluation, `AHI >= 45` is treated as failure-like. The 65-point boundary only separates Warning from Critical.
 
 ### Why RMS over linear average
-RMS amplifies large individual signals. A disk scoring 0.9 on one model and 0.1 on others gets `sqrt(0.4·0.9²) ≈ 0.57` with RMS vs `0.4·0.9 = 0.36` with linear. A catastrophic signal on one axis cannot be averaged away.
+RMS gives large component values more influence than a linear weighted average because each score is squared before aggregation. The component weight still limits that influence: if the anomaly score is 1 and all other scores are 0, AHI is `sqrt(0.20) × 100 ≈ 44.7`, which remains below Warning.
+
+### Common Q1 2026 evaluation
+
+The paper reports the following results on the same balanced, serial-disjoint cohort of 1,018 failure-day and 1,018 healthy records:
+
+| Score | ROC-AUC | PR-AUC | Recall | FPR | Precision | F1 |
+|---|---:|---:|---:|---:|---:|---:|
+| Random forest | 0.922 | 0.938 | 0.812 | 0.067 | 0.924 | 0.865 |
+| Bottleneck classifier | 0.906 | 0.912 | 0.772 | 0.086 | 0.899 | 0.831 |
+| Anomaly detector | 0.737 | 0.742 | 0.522 | 0.064 | 0.891 | 0.658 |
+| HDBSCAN cluster risk | 0.853 | 0.816 | 0.820 | 0.227 | 0.783 | 0.801 |
+| **AHI** | **0.923** | **0.936** | **0.783** | **0.091** | **0.896** | **0.835** |
+
+`evaluate_2026.py` stores each true `failure` label together with the four component scores and AHI. ROC-AUC and PR-AUC use the continuous scores. Recall, FPR, precision and F1 use each component's configured threshold; AHI uses 45.
+
+This is a balanced current-state evaluation, not a natural-prevalence fleet test or future-failure evaluation. Precision therefore cannot be transferred directly to production prevalence. The raw Q1 2026 CSVs and generated per-record output CSVs are not tracked in the repository.
 
 ### Inference flow (`ahi_final.py`)
 1. Load all 4 model artifacts (RF pipeline, encoder+classifier+scaler, AE+scaler, HDBSCAN+metadata)

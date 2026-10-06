@@ -1,16 +1,55 @@
-# DiskGuard — Frontend (React + Vite)
+# DiskGuard Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite dashboard for the DiskGuard hard-drive current-state assessment pipeline.
 
-Currently, two official plugins are available:
+## Current behaviour
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Uploads a `smartctl -j` JSON file to `POST /api/predict/combined`.
+- Displays the combined AHI score, Healthy/Warning/Critical verdict, component model outputs, drive information and analysis history.
+- Parses basic drive information and SMART attributes in the browser for display.
+- Bundles sample JSON files from the repository `DiskJson/` directory at build time. Files containing `_results` or `sweep` in their names are excluded from the sample list.
 
-## React Compiler
+The frontend does not run the models itself. The FastAPI backend must be available for analysis.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Local development
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The API base URL defaults to `http://localhost:8000`. Override it when needed:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:VITE_API_BASE_URL="http://localhost:8000"
+npm run dev
+```
+
+## Checks
+
+```bash
+npm run lint
+npm run build
+```
+
+## Docker
+
+From the repository root:
+
+```bash
+docker compose up -d --build
+```
+
+The composed services are exposed at:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+- TensorBoard: `http://localhost:6006`
+
+The production frontend image is built with Node and served by Nginx.

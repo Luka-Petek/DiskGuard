@@ -24,29 +24,47 @@
 
 A machine learning system for assessing the current condition of hard drives from **SMART** sensor data. Four model components — spanning supervised learning, unsupervised anomaly detection, and density-based clustering — are fused into a single interpretable score: the **Aggregated Health Index (AHI)**. The bottleneck classifier and HDBSCAN share the same encoder, so the components are not independent.
 
-Built on the [Backblaze 2025](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data) open dataset: **32M+ records**, **365 daily CSV files**, **4,414 confirmed failure events**.
+The source corpus is the [Backblaze hard-drive dataset](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data): more than **32 million daily records** from **365 CSV files**, prepared for the period from 1 October 2024 to 30 September 2025. It contains **4,414 failure-day records**. The complete source corpus is not passed to every model: the healthy-only autoencoders use sampled healthy records, while supervised training and clustering use a balanced labelled set.
 
 > **For a detailed ML engineering breakdown** — preprocessing logic, model architectures, training configs, and AHI fusion math — see [`srcML/README.md`](srcML/README.md).
 
-- **Four ML components, one final score** — RF, deep AE, bottleneck classifier and HDBSCAN are combined into one AHI verdict while their individual scores remain visible
-- **32M+ real-world sensor records** — trained on Backblaze production fleet data, not synthetic benchmarks
-- **Local evaluation** — upload a `smartctl -j` JSON output and receive an AHI score and verdict without a remote service
-- **Fully offline** — no cloud, no telemetry, no data leaves the machine
+- **Four ML components, one final score** — random forest, anomaly autoencoder, bottleneck classifier and HDBSCAN are combined while their individual scores remain visible
+- **Real SMART data** — models are trained on prepared samples from the Backblaze source corpus, not synthetic records
+- **Local evaluation** — upload a `smartctl -j` JSON file and receive an AHI score and verdict
+- **Fully offline inference** — no cloud or remote inference service is required
 
-*The model evaluates the current condition of a drive and outputs an AHI risk index from 0 to 100 points. It does not predict future failure or estimate remaining drive life.*
+*AHI describes how failure-like the current SMART snapshot is. It is a risk index, not a calibrated failure probability, future-failure prediction, or remaining-life estimate.*
 
 ---
 
-## Model Components
+## Training Data and Model Components
 
-| Component | Method | Representation | AHI Weight |
+| Component | Training data | Representation | AHI weight |
 |---|---|---|---:|
-| **Model 0** — Random Forest | Supervised Random Forest | 19 processed SMART features + manufacturer encoding | 0.30 |
-| **Model 1** — Anomaly AE | Healthy-only autoencoder | 19 features → 12-dimensional bottleneck | 0.20 |
-| **Model 2** — Bottleneck classifier | Supervised classifier | 19 features → shared 8-dimensional encoder | 0.40 |
-| **Model 3** — HDBSCAN | Density-based clustering | Same shared 8-dimensional encoder | 0.10 |
+| **Random forest** | Balanced: 4,414 failure-day + 4,414 healthy records | 19 processed features + manufacturer encoding | 0.30 |
+| **Anomaly autoencoder** | 289,982 healthy train + 72,481 healthy validation records | 19 features → 12-dimensional bottleneck | 0.20 |
+| **Bottleneck classifier** | Encoder trained on healthy records; classifier trained on the balanced 8,828-record set | 19 features → shared 8-dimensional encoder → dense classifier | 0.40 |
+| **HDBSCAN** | Balanced 8,828-record set with serial-grouped internal split | Same shared 8-dimensional encoder | 0.10 |
 
-The final evaluation compares all four components and AHI on the same serial-disjoint Q1 2026 records. The paper reports the resulting metrics and cohort counts.
+The 8-dimensional bottleneck was selected in a preliminary sweep over 4, 6, 7, 8, 10 and 12 dimensions. Eight had the highest validation ROC-AUC in that experiment. The sweep used a reduced sample and did not compare against the unreduced 19-dimensional input, so 8 should not be treated as a universally optimal dimension.
+
+## Q1 2026 Evaluation
+
+The paper reports a common evaluation on **2,036 serial-disjoint records** from Q1 2026: **1,018 failure-day records and 1,018 healthy records**. Every component and AHI was scored on the same balanced cohort. Training serial numbers were excluded before evaluation.
+
+| Score | ROC-AUC | PR-AUC | Recall | FPR | Precision | F1 |
+|---|---:|---:|---:|---:|---:|---:|
+| Random forest | 0.922 | **0.938** | 0.812 | 0.067 | **0.924** | **0.865** |
+| Bottleneck classifier | 0.906 | 0.912 | 0.772 | 0.086 | 0.899 | 0.831 |
+| Anomaly detector | 0.737 | 0.742 | 0.522 | **0.064** | 0.891 | 0.658 |
+| HDBSCAN cluster risk | 0.853 | 0.816 | **0.820** | 0.227 | 0.783 | 0.801 |
+| **AHI** | **0.923** | 0.936 | 0.783 | 0.091 | 0.896 | 0.835 |
+
+AHI is evaluated as a continuous score against the binary `failure` label. ROC-AUC and PR-AUC measure ranking across thresholds. Recall, FPR, precision and F1 use the fixed binary decision `AHI >= 45` (Warning or Critical).
+
+The balanced cohort is useful for comparing score separation, but it does not represent real fleet prevalence. In particular, the reported AHI precision of 0.896 must not be interpreted as expected production precision. With the same recall and FPR, the paper estimates precision of about 0.85%, 4.1% and 8.0% at failure prevalences of 0.1%, 0.5% and 1%, respectively.
+
+The evaluation implementation is in [`srcML/evaluate_2026.py`](srcML/evaluate_2026.py), and the reported plot is in [`Graphs/ahi_2026.png`](Graphs/ahi_2026.png). The raw Q1 2026 CSV files and generated per-record metric CSV files are not tracked in this repository, so reproducing the reported table requires obtaining the source cohort first.
 
 ---
 
@@ -79,7 +97,7 @@ diskFailurePrediction/
 │   ├── tensorflow_clustering/          # Impl C — UMAP + HDBSCAN
 │   │   ├── umap_hdbscan.py             #   Training + TensorBoard Projector export
 │   │   ├── clf_hdbscan.pkl             #   Trained HDBSCAN model
-│   │   ├── hdbscan_metadata.json       #   18 clusters + per-cluster failure rates
+│   │   ├── hdbscan_metadata.json       #   21 clusters + outlier group + risk metadata
 │   │   └── logs/                       #   TensorBoard Embedding Projector logs
 │   ├── nn_preprocessing/
 │   │   └── preprocessing.py            #   Shared feature prep, CSV loading, dataset balancing
@@ -97,7 +115,7 @@ diskFailurePrediction/
 
 ### Dashboard
 
-Score clamped to **[3, 97]** · Verdicts: **HEALTHY** < 45 · **WARNING** 45–65 · **CRITICAL** > 65
+Score clamped to **[3, 97]** · Verdicts: **HEALTHY** < 45 · **WARNING** 45 to < 65 · **CRITICAL** ≥ 65
 
 ![Dashboard](Graphs/dashbaord.png)
 
@@ -113,7 +131,7 @@ A classical supervised pipeline trained in [`smart_scan_model.ipynb`](srcML/skle
 3. SMART 188 — Command Timeout
 4. SMART 197 — Current Pending Sector Count
 
-The RF uses serial-grouped train/test splitting. Final component metrics are reported from the common Q1 2026 serial-disjoint evaluation rather than from this README.
+The random forest uses serial-grouped train/test splitting. Its common Q1 2026 metrics are shown in the evaluation table above.
 
 ![classification.png](Graphs/classification.png)
 
@@ -125,7 +143,7 @@ The autoencoder is trained **only on healthy disk rows**. It learns to reconstru
 
 **Architecture:** 19 → 64 → 32 → **12** (bottleneck) → 32 → 64 → 19
 
-The autoencoder's detailed validation metrics are stored in `tf_metadata.json`. For the final comparison, all components are scored on the same serial-disjoint Q1 2026 records.
+The autoencoder's internal validation metrics are stored in `tf_metadata.json`. The common Q1 2026 table above is the direct comparison because every component is scored on the same records.
 
 ![Autoencoder Architecture](Graphs/nn_autoencoder.png)
 
@@ -138,9 +156,9 @@ python srcML/tensorflow_anomaly/predict_autoencoder.py --input DiskJson/disk_dat
 
 ## Model 2 — Bottleneck Classifier (Supervised, 2-stage)
 
-The strongest individual signal in the ensemble. A two-stage pipeline where a dedicated autoencoder first compresses the 19 SMART features into an **8-dimensional bottleneck** (optimal dimensionality determined empirically), and a supervised feedforward classifier then acts on those distilled, noise-reduced features.
+A two-stage pipeline where a dedicated autoencoder first compresses the 19 SMART features into an **8-dimensional bottleneck**, and a supervised feedforward neural network then classifies that representation. Eight dimensions performed best by ROC-AUC among the sizes tested in the preliminary bottleneck sweep.
 
-Training uses a balanced labelled dataset and serial-grouped train/validation/test partitions, so records from the same drive do not cross the partitions. Final component metrics are reported from the common Q1 2026 serial-disjoint evaluation.
+Training uses a balanced labelled dataset and serial-grouped train/validation/test partitions, so records from the same drive do not cross the partitions. The common Q1 2026 metrics are shown in the evaluation table above.
 
 ![Classifier Architecture](Graphs/nn_classification.png)
 
@@ -166,9 +184,9 @@ python srcML/tensorflow_clustering/umap_hdbscan.py --data-dir DiskData
 
 ---
 
-## Aggregated Health Index (AHI) - Clean and final result
+## Aggregated Health Index (AHI)
 
-All four models are fused into a single score using a **weighted root-mean-square** formula. RMS is preferred over a linear average because it amplifies large individual signals — a disk that looks catastrophic on one axis cannot be "averaged away" by healthy scores elsewhere.
+All four component scores are fused using a **weighted root-mean-square** formula. Squaring gives large component values more influence than a linear weighted average, but each component weight still limits its contribution. For example, an anomaly score of 1 with every other score at 0 gives an AHI of about 44.7, which remains below the Warning threshold.
 
 ![AHI Formula](Graphs/ahi_formula.png)
 
@@ -179,7 +197,7 @@ All four models are fused into a single score using a **weighted root-mean-squar
 | A | Anomaly AE normalized score | 0.20 |
 | C | HDBSCAN cluster failure rate | 0.10 |
 
-AHI is evaluated as a 0–100 index in points, not as a calibrated failure probability. The primary external evaluation uses a balanced, serial-disjoint cohort from Q1 2026: failure-day records and healthy records from drives that did not fail during the quarter and were not present in the prepared 2025 training data. The evaluation script writes the per-record scores, component metrics, and plot to the `DiskJson/` and `Graphs/` directories. A small CPU test measured about 7.1 MB of model files and about 0.20 s to evaluate one disk, but TensorFlow used about 0.95 GB of memory during normal evaluation. NAS and edge-device performance has not been tested.
+AHI is reported as index points, not as a calibrated failure probability. A small CPU test on the development computer measured about 7.1 MB of model files and about 0.20 seconds to evaluate one disk. The process used about 0.40 GB after model loading and about 0.95 GB during normal evaluation. These measurements are machine-specific; NAS and edge-device performance has not been tested.
 
 ### Run on any disk:
 ```bash
